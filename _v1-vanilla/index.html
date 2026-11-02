@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>매장 데이터 | 배라 AX</title>
+<meta name="description" content="신제품 출시 후 매장 반응을 일 단위로 보고, 발주와 교체 시점을 판단하는 매장 데이터 화면. 모든 값은 합성 데이터입니다.">
+<script>document.documentElement.classList.add("js")</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23362b27%22/%3E%3Cpath d=%22M8 22l5-7 4 4 7-10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<div class="scrim" aria-hidden="true"></div>
+<div class="shell">
+  <aside class="sidebar" id="sidebar" aria-label="메뉴">
+    <div class="brand">
+      <a class="brand__name" href="#/home" data-link="home" aria-label="배라 AX 홈">배라 AX</a>
+      <p class="brand__sub">매장 데이터</p>
+    </div>
+    <nav class="nav" aria-label="기능">
+      <a class="nav__link" href="#/home" data-route="home">홈</a>
+      <p class="nav__group">출시 반응</p>
+      <a class="nav__link" href="#/reaction" data-route="reaction"><span class="nav__n num">1</span>반응 지수</a>
+      <a class="nav__link" href="#/diagnosis" data-route="diagnosis"><span class="nav__n num">2</span>관심-구매 진단</a>
+      <p class="nav__group">결정</p>
+      <a class="nav__link" href="#/orders" data-route="orders"><span class="nav__n num">3</span>발주·교체 권고</a>
+      <p class="nav__group">레이더와 연결</p>
+      <a class="nav__link" href="#/radar" data-route="radar"><span class="nav__n num">4</span>레이더 보정</a>
+      <p class="nav__group">비교</p>
+      <a class="nav__link" href="#/types" data-route="types"><span class="nav__n num">6</span>유형별 반응 속도</a>
+      <a class="nav__link" href="#/ranks" data-route="ranks"><span class="nav__n num">7</span>순위 급변</a>
+      <p class="nav__group">설계</p>
+      <a class="nav__link" href="#/privacy" data-route="privacy"><span class="nav__n num">5</span>프라이버시</a>
+    </nav>
+    <div class="sidebar__foot">
+      <button type="button" class="linkbtn" data-act="appr-clear">승인 기록 지우기</button>
+    </div>
+  </aside>
+  <div class="frame">
+    <header class="topbar">
+      <button type="button" class="iconbtn menu-btn" aria-label="메뉴 열기" aria-expanded="false" aria-controls="sidebar"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="topbar__ctl topbar__launch">
+        <label for="launch">신제품</label>
+        <select id="launch" class="select">
+          <option value="a">가상 신제품 A</option>
+          <option value="b">가상 신제품 B</option>
+          <option value="c">가상 신제품 C</option>
+        </select>
+      </div>
+      <div class="topbar__ctl topbar__day">
+        <label for="day">출시 후</label>
+        <output id="dayOut" class="topbar__d num" for="day">D+5</output>
+        <span id="dateOut" class="topbar__date muted"></span>
+        <input id="day" class="range" type="range" min="0" max="28" step="1" value="5" aria-label="출시 후 일차">
+        <button type="button" id="play" class="iconbtn" aria-pressed="false" aria-label="출시 후 날짜를 하루씩 재생"></button>
+      </div>
+      <span class="badge" role="status">합성 데이터, 정확도 미검증</span>
+    </header>
+    <main id="main" tabindex="-1"><noscript><p class="notice">이 화면은 JavaScript가 필요합니다. 브라우저에서 스크립트를 켜 주세요.</p></noscript></main>
+    <footer class="footbar">
+      <p>영상, 얼굴, 개인 ID 없이 존 단위 집계값만 사용합니다.</p>
+      <a href="#/privacy" data-link="privacy">프라이버시 설계 보기</a>
+    </footer>
+  </div>
+</div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="views.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

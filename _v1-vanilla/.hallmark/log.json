@@ -1,0 +1,22 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "coral",
+  "signature": "launch-day scrubber",
+  "sections": [
+   "home",
+   "reaction",
+   "diagnosis",
+   "orders",
+   "radar",
+   "privacy",
+   "types",
+   "ranks"
+  ],
+  "waived": [],
+  "prompt": "baera store data module 7 features",
+  "date": "2026-11-02",
+  "mode": "build"
+ }
+]

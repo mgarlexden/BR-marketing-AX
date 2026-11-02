@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* 플랫폼 색상 테마 (제공된 토큰 그대로). 아래 두 가지만 덧붙였다:
+   1) --font-sans 끝에 한글용 Pretendard, 2) 상태색 --good/--bad (KPI 증감과 동선 구분용) */
+:root {
+  --card: #ffffff;
+  --ring: #0F62FE;
+  --input: #e2e2ee;
+  --muted: #f1f1f8;
+  --accent: #f0f2ff;
+  --border: #e2e2ee;
+  --radius: 1.4rem;
+  --chart-1: #6b46ff;
+  --chart-2: #4a72ff;
+  --chart-3: #04c3dc;
+  --chart-4: #0eddba;
+  --chart-5: #00b88a;
+  --popover: #ffffff;
+  --primary: #0F62FE;
+  --sidebar: #fdfdff;
+  --spacing: 0.25rem;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Inter', 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --secondary: #edebff;
+  --background: #fdfdff;
+  --font-serif: 'Merriweather', serif;
+  --foreground: #0d0d12;
+  --destructive: #ef4444;
+  --shadow-blur: 15px;
+  --shadow-color: #000000;
+  --sidebar-ring: #0F62FE;
+  --shadow-spread: 0px;
+  --letter-spacing: -0.01em;
+  --shadow-opacity: 0.15;
+  --sidebar-accent: #f0f2ff;
+  --sidebar-border: #e2e2ee;
+  --card-foreground: #0d0d12;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 4px;
+  --sidebar-primary: #0F62FE;
+  --muted-foreground: #62627a;
+  --accent-foreground: #6b46ff;
+  --popover-foreground: #0d0d12;
+  --primary-foreground: #F3F4F6;
+  --sidebar-foreground: #0d0d12;
+  --secondary-foreground: #483d8b;
+  --destructive-foreground: #f8fafc;
+  --sidebar-accent-foreground: #6b46ff;
+  --sidebar-primary-foreground: #ffffff;
+  --good: #059669;
+  --bad: #e11d48;
+  --dir-expand: #0F62FE;
+  --dir-maintain: #62627a;
+  --dir-fix: #f59e0b;
+  --dir-wrap: #f43f5e;
+}
+
+.dark {
+  --card: #121216;
+  --ring: #8c71ff;
+  --input: #2a2a35;
+  --muted: #1a1a24;
+  --accent: #252445;
+  --border: #2a2a35;
+  --radius: 1.4rem;
+  --chart-1: #3b82f6;
+  --chart-2: #a855f7;
+  --chart-3: #6366f1;
+  --chart-4: #8b5cf6;
+  --chart-5: #2dd4bf;
+  --popover: #121216;
+  --primary: #8c71ff;
+  --sidebar: #111115;
+  --spacing: 0.25rem;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Inter', 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --secondary: #1e1b3a;
+  --background: #0a0a0c;
+  --font-serif: 'Merriweather', serif;
+  --foreground: #f8f8fc;
+  --destructive: #7f1d1d;
+  --shadow-blur: 25px;
+  --shadow-color: #000000;
+  --sidebar-ring: #8c71ff;
+  --shadow-spread: 0px;
+  --letter-spacing: -0.01em;
+  --shadow-opacity: 0.15;
+  --sidebar-accent: #1e1b3a;
+  --sidebar-border: #27272a;
+  --card-foreground: #f8f8fc;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 10px;
+  --sidebar-primary: #8c71ff;
+  --muted-foreground: #a1a1b5;
+  --accent-foreground: #c7b8ff;
+  --popover-foreground: #f8f8fc;
+  --primary-foreground: #ffffff;
+  --sidebar-foreground: #e4e4e7;
+  --secondary-foreground: #d4ccff;
+  --destructive-foreground: #f8fafc;
+  --sidebar-accent-foreground: #d4ccff;
+  --sidebar-primary-foreground: #ffffff;
+  --good: #34d399;
+  --bad: #fb7185;
+  --dir-expand: #8c71ff;
+  --dir-maintain: #a1a1b5;
+  --dir-fix: #fbbf24;
+  --dir-wrap: #fb7185;
+}
+
+@theme inline {
+  --color-card: var(--card);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-popover: var(--popover);
+  --color-primary: var(--primary);
+  --color-sidebar: var(--sidebar);
+  --color-secondary: var(--secondary);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-card-foreground: var(--card-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-sm: calc(var(--radius) - 10px);
+  --radius-md: calc(var(--radius) - 6px);
+  --radius-lg: calc(var(--radius) - 2px);
+  --radius-xl: var(--radius);
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  html { color-scheme: light; overflow-x: clip; }
+  html.dark { color-scheme: dark; }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    letter-spacing: var(--letter-spacing);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
+
+/* 숫자는 JetBrains Mono, 자릿수 정렬 */
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* 날짜 슬라이더 */
+.range { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; cursor: pointer; }
+.range::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: var(--border); }
+.range::-moz-range-track { height: 4px; border-radius: 999px; background: var(--border); }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 999px; background: var(--primary); border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--primary); }
+.range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 999px; background: var(--primary); border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--primary); }
+
+/* 판정 색 트랙 위에 얹는 슬라이더: 트랙은 투명, 손잡이만 보인다 */
+.range--bare::-webkit-slider-runnable-track { background: transparent; }
+.range--bare::-moz-range-track { background: transparent; }
+.range--bare::-webkit-slider-thumb { width: 18px; height: 18px; border: 3px solid var(--card); box-shadow: 0 0 0 1.5px var(--foreground); background: var(--foreground); }
+.range--bare::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid var(--card); box-shadow: 0 0 0 1.5px var(--foreground); background: var(--foreground); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
