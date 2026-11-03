@@ -14,7 +14,10 @@ import warnings
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 from sklearn.model_selection import GroupKFold
 
@@ -102,16 +105,29 @@ def rf():
     return RandomForestClassifier(300, min_samples_leaf=5, class_weight='balanced', random_state=0)
 
 
-# 4. 검증 (키워드 단위 5묶음)
-p = np.zeros(len(y))
-for tr, te in GroupKFold(5).split(X, y, g):
-    p[te] = rf().fit(X.iloc[tr], y[tr]).predict_proba(X.iloc[te])[:, 1]
+# 4. 검증 (키워드 단위 5묶음). 노트북과 같은 모델 3종을 비교하고, 화면 예측에는 랜덤 포레스트를 쓴다
+CANDIDATES = {
+    '로지스틱 회귀': lambda: make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight='balanced')),
+    '랜덤 포레스트': rf,
+    '그래디언트 부스팅': lambda: HistGradientBoostingClassifier(max_depth=3, learning_rate=0.05, max_iter=200,
+                                                       class_weight='balanced', random_state=0),
+}
+model_scores, oof = [], {}
+for name, make in CANDIDATES.items():
+    pr = np.zeros(len(y))
+    for tr, te in GroupKFold(5).split(X, y, g):
+        pr[te] = make().fit(X.iloc[tr], y[tr]).predict_proba(X.iloc[te])[:, 1]
+    oof[name] = pr
+    model_scores.append(dict(name=name, bal=round(float(balanced_accuracy_score(y, pr > .5)), 2),
+                             auc=round(float(roc_auc_score(y, pr)), 2), used=name == '랜덤 포레스트'))
+p = oof['랜덤 포레스트']
 rule = (S.rise_weeks > 5).astype(int)
 scores = dict(
     samples=int(len(S)), keywords=int(W.shape[1]), survive_rate=round(float(y.mean()), 2),
     model_bal=round(float(balanced_accuracy_score(y, p > .5)), 2),
     model_auc=round(float(roc_auc_score(y, p)), 2),
     rule_bal=round(float(balanced_accuracy_score(y, rule)), 2),
+    models=model_scores,
 )
 final = rf().fit(X, y)
 

@@ -127,9 +127,9 @@ function Shapes() {
 
 function Scores() {
   const bars = [
-    { label: '모델 (랜덤 포레스트)', v: scores.model_bal, cls: 'bg-primary' },
-    { label: '규칙 (5주 이하면 못 버팀)', v: scores.rule_bal, cls: 'bg-muted-foreground/45' },
-    { label: '찍기 (동전 던지기)', v: 0.5, cls: 'bg-border' },
+    ...scores.models.map((m) => ({ label: m.name, tag: m.used ? '화면에 사용' : undefined, v: m.bal, auc: m.auc as number | undefined, cls: m.used ? 'bg-primary' : 'bg-primary/45' })),
+    { label: '기존 규칙 (5주 이하면 못 버팀)', tag: undefined, v: scores.rule_bal, auc: undefined, cls: 'bg-muted-foreground/45' },
+    { label: '찍기 (동전 던지기)', tag: undefined, v: 0.5, auc: undefined, cls: 'bg-border' },
   ]
   return (
     <Card>
@@ -137,14 +137,14 @@ function Scores() {
       <div className="flex flex-col gap-3">
         {bars.map((b) => (
           <div key={b.label}>
-            <div className="mb-1 flex items-baseline justify-between text-sm"><span className="font-medium">{b.label}</span><span className="num font-semibold">{Math.round(b.v * 100)}%</span></div>
+            <div className="mb-1 flex items-baseline justify-between text-sm"><span className="font-medium">{b.label}{b.tag && <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-foreground">{b.tag}</span>}</span><span className="num font-semibold">{Math.round(b.v * 100)}%{b.auc !== undefined && <span className="ml-1.5 text-xs font-normal text-muted-foreground">AUC {b.auc.toFixed(2)}</span>}</span></div>
             <div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className={cn('h-full rounded-full', b.cls)} style={{ width: `${b.v * 100}%` }} /></div>
           </div>
         ))}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        균형 정확도: 버틴 것과 못 버틴 것을 각각 맞힌 비율의 평균. AUC {scores.model_auc.toFixed(2)}.
-        모델이 가장 크게 본 신호는 평소 수요(원래 찾던 사람이 있었나)와 꾸준히 검색된 기간.
+        퍼센트는 균형 정확도(버틴 것과 못 버틴 것을 각각 맞힌 비율의 평균), AUC는 버틴 키워드에 더 높은 점수를 준 정도(0.5 찍기, 1.0 완벽).
+        세 모델 모두 기존 규칙보다 낫고, 그중 AUC가 가장 높은 랜덤 포레스트를 화면 예측에 씁니다. 모델이 가장 크게 본 신호는 평소 수요와 꾸준히 검색된 기간.
       </p>
     </Card>
   )

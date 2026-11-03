@@ -34,7 +34,7 @@ export interface RadarCluster { id: number; size: number; main: RadarType; match
 
 export interface RadarData {
   meta: { minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number }
-  scores: { samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number }
+  scores: { samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number; models: { name: string; bal: number; auc: number; used: boolean }[] }
   items: RadarItem[]
   clusters: RadarCluster[]
 }
