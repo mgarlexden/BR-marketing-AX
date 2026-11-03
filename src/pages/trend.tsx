@@ -179,7 +179,7 @@ export default function Trend() {
       <TD className="hidden text-xs text-muted-foreground sm:table-cell">{it.type}</TD>
       <TD><ProbBar p={it.prob} /></TD>
       <TD className={cn('num whitespace-nowrap text-xs', it.size < meta.minSize ? 'text-muted-foreground' : 'font-semibold')} title="이 키워드가 가장 많이 검색됐던 주를 100%로 볼 때 지금 검색량">{it.size}%</TD>
-      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill></TD>}
+      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill>{it.action === '관찰' && <span className="ml-1.5 text-xs text-muted-foreground">{it.prob >= 0.6 ? '규모 작음' : '확률 애매'}</span>}</TD>}
       <TD className="num hidden text-right text-xs text-muted-foreground sm:table-cell">{shortDate(it.detected)}</TD>
     </TR>
   )
