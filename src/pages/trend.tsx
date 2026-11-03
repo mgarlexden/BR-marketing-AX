@@ -178,6 +178,7 @@ export default function Trend() {
       <TD className="whitespace-nowrap font-medium">{it.kw}</TD>
       <TD className="hidden text-xs text-muted-foreground sm:table-cell">{it.type}</TD>
       <TD><ProbBar p={it.prob} /></TD>
+      <TD className={cn('num whitespace-nowrap text-xs', it.size < meta.minSize ? 'text-muted-foreground' : 'font-semibold')} title="감지 주 검색량, 역대 최고 = 100%">{it.size}%</TD>
       {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill></TD>}
       <TD className="num hidden text-right text-xs text-muted-foreground sm:table-cell">{shortDate(it.detected)}</TD>
     </TR>
@@ -204,7 +205,7 @@ export default function Trend() {
           <CardHeader title="최근 3개월 급등 키워드" description="지금 결정할 대상" right={<Segmented label="제안 필터" value={filter} options={opts} onChange={setFilter} />} />
           <Table wrapperClassName="max-h-[560px]">
             <THead>
-              <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>{H}주 생존</TH><TH>제안</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
+              <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>{H}주 생존</TH><TH title="역대 최고 대비 지금 검색량">규모</TH><TH>제안</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
             </THead>
             <TBody>{list.map((it) => row(it))}</TBody>
           </Table>
@@ -217,7 +218,7 @@ export default function Trend() {
               </summary>
               <Table wrapperClassName="mt-2">
                 <THead>
-                  <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>예측 생존</TH><TH>실제</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
+                  <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>예측 생존</TH><TH title="역대 최고 대비 지금 검색량">규모</TH><TH>실제</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
                 </THead>
                 <TBody>
                   {past.map((it) => row(it, <TD className="whitespace-nowrap"><Pill tone={it.actual ? 'good' : 'neutral'}>{it.actual ? '버팀' : '못 버팀'}</Pill>{(it.prob >= 0.5) === it.actual ? <span className="ml-1.5 text-xs text-good">맞음</span> : <span className="ml-1.5 text-xs text-bad">틀림</span>}</TD>))}
