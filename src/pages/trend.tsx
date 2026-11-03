@@ -84,7 +84,8 @@ function Detail({ it }: { it: RadarItem }) {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="역대 최고 대비" value={`${Math.round(it.series[it.detectedIdx])}%`} note={it.series[it.detectedIdx] < 30 ? '규모는 작음' : '규모 큼'} />
         <Stat label="꾸준히 검색된 주" value={it.steady > 104 ? '2년+' : `${it.steady}주`} note={it.steady <= 5 ? '갑자기 튐' : '원래 찾던 단어'} />
         <Stat label="평소 수요" value={`${Math.round(Math.min(it.base, 9.99) * 100)}%`} note="1년 평균 / 지금" />
         <Stat label="4주 전 대비" value={`${it.jump}배`} note="급등 폭" />
@@ -128,7 +129,7 @@ function Scores() {
   const bars = [
     { label: '모델 (랜덤 포레스트)', v: scores.model_bal, cls: 'bg-primary' },
     { label: '규칙 (5주 이하면 못 버팀)', v: scores.rule_bal, cls: 'bg-muted-foreground/45' },
-    { label: '찍기', v: 0.5, cls: 'bg-border' },
+    { label: '찍기 (동전 던지기)', v: 0.5, cls: 'bg-border' },
   ]
   return (
     <Card>
@@ -136,7 +137,7 @@ function Scores() {
       <div className="flex flex-col gap-3">
         {bars.map((b) => (
           <div key={b.label}>
-            <div className="mb-1 flex items-baseline justify-between text-sm"><span className="font-medium">{b.label}</span><span className="num font-semibold">{b.v.toFixed(2)}</span></div>
+            <div className="mb-1 flex items-baseline justify-between text-sm"><span className="font-medium">{b.label}</span><span className="num font-semibold">{Math.round(b.v * 100)}%</span></div>
             <div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className={cn('h-full rounded-full', b.cls)} style={{ width: `${b.v * 100}%` }} /></div>
           </div>
         ))}
@@ -149,12 +150,38 @@ function Scores() {
   )
 }
 
+/** 감지 후 13주가 지나지 않은 것만 지금 결정할 대상. 지난 것은 실제 결과와 함께 따로 보여준다. */
+const fresh = items.filter((i) => i.actual === null)
+const past = items.filter((i) => i.actual !== null)
+const pastHit = past.filter((i) => (i.prob >= 0.5) === i.actual).length
+
+function Kpi({ label, value, note }: { label: string; value: React.ReactNode; note: string }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-foreground">{label}</p>
+      <p className="num mt-1 text-3xl font-bold tracking-tighter">{value}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>
+    </div>
+  )
+}
+
 export default function Trend() {
   const [filter, setFilter] = useState<Filter>('all')
-  const [sel, setSel] = useState(items[0]?.kw ?? '')
-  const list = useMemo(() => items.filter((i) => filter === 'all' || i.action === filter), [filter])
+  const [sel, setSel] = useState(fresh[0]?.kw ?? items[0]?.kw ?? '')
+  const list = useMemo(() => fresh.filter((i) => filter === 'all' || i.action === filter), [filter])
   const cur = items.find((i) => i.kw === sel) ?? items[0]
-  const count = (a: RadarAction) => items.filter((i) => i.action === a).length
+  const count = (a: RadarAction) => fresh.filter((i) => i.action === a).length
+  const opts = FILTERS.map((f) => ({ ...f, label: f.value === 'all' ? `${f.label} ${fresh.length}` : `${f.label} ${count(f.value)}` }))
+  const row = (it: RadarItem, extra?: React.ReactNode) => (
+    <TR key={it.kw} onClick={() => setSel(it.kw)} aria-selected={it.kw === cur?.kw}
+      className={cn('cursor-pointer hover:bg-muted/50', it.kw === cur?.kw && 'bg-muted/70')}>
+      <TD className="whitespace-nowrap font-medium">{it.kw}</TD>
+      <TD className="hidden text-xs text-muted-foreground sm:table-cell">{it.type}</TD>
+      <TD><ProbBar p={it.prob} /></TD>
+      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill></TD>}
+      <TD className="num hidden text-right text-xs text-muted-foreground sm:table-cell">{shortDate(it.detected)}</TD>
+    </TR>
+  )
 
   return (
     <div>
@@ -162,36 +189,43 @@ export default function Trend() {
         title="트렌드 레이더"
         product={false}
         basis={{ level: '실데이터', why: `네이버 데이터랩 주간 검색량 ${shortDate(meta.first)} ~ ${shortDate(meta.last)}, 키워드 ${scores.keywords}개` }}
-        sub={`최근 ${meta.recent}주 안에 검색량이 급등한 키워드를 골라, 이달의 맛 출시까지 걸리는 ${H}주 뒤에도 수요가 남을지 예측합니다. 데이터 기준일 ${shortDate(meta.last)}.`}
+        sub={`최근 3개월(${H}주) 안에 검색량이 급등한 키워드를 골라, 이달의 맛 출시까지 걸리는 ${H}주 뒤에도 수요가 남을지 예측합니다. 데이터 기준일 ${shortDate(meta.last)}.`}
       />
 
       <Card className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="감시 키워드" value={scores.keywords} note="디저트, 재료" />
-        <Stat label={`최근 ${meta.recent}주 급등`} value={items.length} note="직전 12주 평균의 1.5배 이상" />
-        <Stat label="이달의 맛 후보" value={count('후보')} note={`시즌 재출시 ${count('시즌')}개`} />
-        <Stat label="모델 균형 정확도" value={scores.model_bal.toFixed(2)} note={`규칙 ${scores.rule_bal.toFixed(2)}, 찍기 0.50`} />
+        <Kpi label="추적 중인 키워드" value={scores.keywords} note="디저트, 재료의 네이버 검색량" />
+        <Kpi label="최근 3개월 급등" value={fresh.length} note="평소보다 1.5배 이상 검색" />
+        <Kpi label="이 중 이달의 맛 후보" value={count('후보')} note="출시 때(13주 뒤)까지 남을 확률 60% 이상" />
+        <Kpi label="예측 정확도" value={`${Math.round(scores.model_bal * 100)}%`} note={`기존 규칙은 ${Math.round(scores.rule_bal * 100)}%`} />
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
-          <CardHeader title="급등 키워드" right={<Segmented label="제안 필터" value={filter} options={FILTERS} onChange={setFilter} />} />
+          <CardHeader title="최근 3개월 급등 키워드" description="지금 결정할 대상" right={<Segmented label="제안 필터" value={filter} options={opts} onChange={setFilter} />} />
           <Table wrapperClassName="max-h-[560px]">
             <THead>
               <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>{H}주 생존</TH><TH>제안</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
             </THead>
-            <TBody>
-              {list.map((it) => (
-                <TR key={it.kw} onClick={() => setSel(it.kw)} aria-selected={it.kw === cur?.kw}
-                  className={cn('cursor-pointer hover:bg-muted/50', it.kw === cur?.kw && 'bg-muted/70')}>
-                  <TD className="whitespace-nowrap font-medium">{it.kw}</TD>
-                  <TD className="hidden text-xs text-muted-foreground sm:table-cell">{it.type}</TD>
-                  <TD><ProbBar p={it.prob} /></TD>
-                  <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill></TD>
-                  <TD className="num hidden text-right text-xs text-muted-foreground sm:table-cell">{shortDate(it.detected)}</TD>
-                </TR>
-              ))}
-            </TBody>
+            <TBody>{list.map((it) => row(it))}</TBody>
           </Table>
+          {list.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">해당하는 키워드가 없습니다</p>}
+
+          {past.length > 0 && (
+            <details className="mt-4 rounded-2xl border border-border p-3 text-sm">
+              <summary className="cursor-pointer list-none font-medium">
+                지난 판정 {past.length}개 <span className="text-xs font-normal text-muted-foreground">감지 후 {H}주가 지나 실제 결과가 나온 키워드. 예측이 맞은 것 {pastHit}/{past.length}</span>
+              </summary>
+              <Table wrapperClassName="mt-2">
+                <THead>
+                  <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>예측 생존</TH><TH>실제</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
+                </THead>
+                <TBody>
+                  {past.map((it) => row(it, <TD className="whitespace-nowrap"><Pill tone={it.actual ? 'good' : 'neutral'}>{it.actual ? '버팀' : '못 버팀'}</Pill>{(it.prob >= 0.5) === it.actual ? <span className="ml-1.5 text-xs text-good">맞음</span> : <span className="ml-1.5 text-xs text-bad">틀림</span>}</TD>))}
+                </TBody>
+              </Table>
+              <p className="mt-2 text-xs text-muted-foreground">이 기간은 모델 학습에도 쓰였으므로 참고용입니다. 공정한 성능은 아래 예측 성능 카드의 교차검증 점수를 보세요.</p>
+            </details>
+          )}
         </Card>
         <div className="lg:col-span-2">{cur && <Detail it={cur} />}</div>
       </div>
@@ -202,8 +236,9 @@ export default function Trend() {
       </div>
 
       <HowTo>
-        <p><b>급등 감지:</b> 이번 주 검색량이 5 이상이고 직전 12주 평균의 1.5배 이상.</p>
+        <p><b>급등 감지:</b> 이번 주 검색량이 5 이상이고 직전 12주(3개월) 평균의 1.5배 이상. 화면에는 최근 {H}주 안에 감지된 것만 결정 대상으로 보여 줍니다. 그보다 오래된 것은 출시 타이밍이 이미 지났기 때문입니다.</p>
         <p className="mt-1"><b>{H}주 생존:</b> 감지 후 {H}주 뒤 검색량이 감지 시점의 50% 이상. 랜덤 포레스트가 감지 시점까지의 곡선 특징 8개(급등 폭, 평소 수요, 꾸준히 검색된 기간, 작년 같은 철 등)로 확률을 냅니다.</p>
+        <p className="mt-1"><b>예측 정확도:</b> 과거 급등 {scores.samples}건을 처음 보는 키워드로 시험한 균형 정확도. 살아남은 것 중 맞힌 비율과 꺼진 것 중 맞힌 비율의 평균입니다. 기존 규칙은 최고점까지 5주 이하로 뜨면 못 버틴다고 보는 규칙(데이터랩 판정 탭에서 트렌드 25개로 찾은 것)입니다.</p>
         <p className="mt-1"><b>유형:</b> 1년 주기 자기상관 0.5 이상이고 10년 중 80% 이상 같은 철(±1달)에 정점이면 반복형. 아니면 최고점까지 뜨는 데 걸린 주가 5주 이하면 단발형, 10주 이상이면 완만형, 그 사이는 보류.</p>
         <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시, 생존 확률 60% 이상은 이달의 맛 후보, 40~60%는 4주 관찰, 40% 미만은 단기 대응.</p>
         <p className="mt-1"><b>한계:</b> 정답은 BR 판매가 아니라 검색량 유지 여부이고, 데이터랩은 키워드마다 최고 주를 100으로 맞추므로 키워드 간 절대 규모는 비교하지 않습니다. 계산은 model/ 폴더의 노트북과 export_radar.py.</p>
