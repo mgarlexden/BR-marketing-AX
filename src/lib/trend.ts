@@ -2,7 +2,7 @@
 import type { ShapeName } from './data'
 
 export type RadarType = ShapeName | '보류'
-export type RadarAction = '후보' | '관찰' | '단기' | '시즌'
+export type RadarAction = '후보' | '틈새' | '관찰' | '단기' | '시즌'
 
 export interface RadarItem {
   kw: string
@@ -12,6 +12,8 @@ export interface RadarItem {
   prob: number
   action: RadarAction
   suggestion: string
+  /** 감지 주 검색량, 역대 최고 = 100 */
+  size: number
   /** 급등이 감지된 주 (월요일) */
   detected: string
   /** series 안에서 감지 주의 위치 */
@@ -31,7 +33,7 @@ export interface RadarItem {
 export interface RadarCluster { id: number; size: number; main: RadarType; match: number; members: string[]; curve: number[] }
 
 export interface RadarData {
-  meta: { first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number }
+  meta: { minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number }
   scores: { samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number }
   items: RadarItem[]
   clusters: RadarCluster[]

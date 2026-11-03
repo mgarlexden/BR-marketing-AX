@@ -23,6 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'src', 'lib', 'trend-data.ts')
 H = 13            # BR 리드타임 (주)
 RECENT = 26       # 최근 몇 주 안의 급등을 보여줄지
+MIN_SIZE = 20     # 이달의 맛 후보가 되려면 감지 주 검색량이 역대 최고의 몇 % 이상이어야 하는지
 SHOW_WEEKS = 156  # 상세 그래프에 넣을 기간 (3년)
 
 # 1. 데이터
@@ -139,9 +140,11 @@ scores['cluster_match'] = round(purity, 2)
 
 
 # 6. 최근 급등 키워드 예측과 BR 제안
-def suggest(typ, prob, peak_month):
+def suggest(typ, prob, peak_month, size):
     if typ == '반복형':
         return '시즌', f'매년 {peak_month}월 전후에 돌아오는 재료. 내년 {peak_month}월 출시에 맞춰 시즌 한정으로 준비'
+    if prob >= 0.6 and size < MIN_SIZE:
+        return '틈새', f'수요는 꾸준하지만 규모가 작음 (역대 최고의 {size:.0f}%). 이달의 맛보다는 기존 메뉴 보강이나 소량 한정으로 검토'
     if prob >= 0.6:
         return '후보', '13주 뒤 출시 시점에도 수요가 남을 가능성이 높음. 이달의 맛 후보로 검토'
     if prob >= 0.4:
@@ -160,10 +163,11 @@ for kw in W.columns:
     prob = float(final.predict_proba(pd.DataFrame([f])[FEATS])[0, 1])
     actual = None if t + H >= n else bool(v[t + H] >= 0.5 * v[t])
     typ = info[kw]['type']
-    action, text = suggest(typ, prob, info[kw]['peakMonth'])
+    size = float(v[t])  # 데이터랩 값은 키워드별 역대 최고 = 100 이라 그대로 %
+    action, text = suggest(typ, prob, info[kw]['peakMonth'], size)
     start = max(0, n - SHOW_WEEKS)
     items.append(dict(
-        kw=kw, type=typ, prob=round(prob, 2), action=action, suggestion=text,
+        kw=kw, type=typ, prob=round(prob, 2), action=action, suggestion=text, size=round(size),
         detected=W.index[t].strftime('%Y-%m-%d'), detectedIdx=t - start,
         actual=actual,
         steady=int(f['rise_weeks']), base=round(float(f['base52']), 2),
@@ -173,7 +177,7 @@ for kw in W.columns:
 items.sort(key=lambda r: -r['prob'])
 start = max(0, n - SHOW_WEEKS)
 meta = dict(
-    first=W.index[0].strftime('%Y-%m-%d'), last=W.index[-1].strftime('%Y-%m-%d'),
+    minSize=MIN_SIZE, first=W.index[0].strftime('%Y-%m-%d'), last=W.index[-1].strftime('%Y-%m-%d'),
     seriesStart=W.index[start].strftime('%Y-%m-%d'), weeks=int(n), horizon=H, recent=RECENT,
 )
 
