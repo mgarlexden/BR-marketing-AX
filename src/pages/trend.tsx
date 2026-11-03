@@ -15,9 +15,8 @@ const H = meta.horizon
 
 const ACTION: Record<RadarAction, { label: string; tone: 'good' | 'primary' | 'warn' | 'neutral' }> = {
   후보: { label: '이달의 맛 후보', tone: 'good' },
-  틈새: { label: '틈새 수요', tone: 'neutral' },
   시즌: { label: '시즌 재출시', tone: 'primary' },
-  관찰: { label: '4주 관찰', tone: 'warn' },
+  관찰: { label: '관찰', tone: 'warn' },
   단기: { label: '단기 대응', tone: 'neutral' },
 }
 const TYPE_NOTE: Record<RadarType, string> = {
@@ -28,7 +27,7 @@ const TYPE_NOTE: Record<RadarType, string> = {
 }
 type Filter = 'all' | RadarAction
 const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: '전체' }, { value: '후보', label: '후보' }, { value: '틈새', label: '틈새' }, { value: '시즌', label: '시즌' }, { value: '관찰', label: '관찰' }, { value: '단기', label: '단기' },
+  { value: 'all', label: '전체' }, { value: '후보', label: '후보' }, { value: '시즌', label: '시즌' }, { value: '관찰', label: '관찰' }, { value: '단기', label: '단기' },
 ]
 const lineCfg = { v: { label: '검색량', color: 'var(--primary)' } } satisfies ChartConfig
 const shapeCfg = { v: { label: '평균 모양', color: 'var(--primary)' } } satisfies ChartConfig
@@ -241,7 +240,7 @@ export default function Trend() {
         <p className="mt-1"><b>{H}주 생존:</b> 감지 후 {H}주 뒤 검색량이 감지 시점의 50% 이상. 랜덤 포레스트가 감지 시점까지의 곡선 특징 8개(급등 폭, 평소 수요, 꾸준히 검색된 기간, 작년 같은 철 등)로 확률을 냅니다.</p>
         <p className="mt-1"><b>예측 정확도:</b> 과거 급등 {scores.samples}건을 처음 보는 키워드로 시험한 균형 정확도. 살아남은 것 중 맞힌 비율과 꺼진 것 중 맞힌 비율의 평균입니다. 기존 규칙은 최고점까지 5주 이하로 뜨면 못 버틴다고 보는 규칙(데이터랩 판정 탭에서 트렌드 25개로 찾은 것)입니다.</p>
         <p className="mt-1"><b>유형:</b> 1년 주기 자기상관 0.5 이상이고 10년 중 80% 이상 같은 철(±1달)에 정점이면 반복형. 아니면 최고점까지 뜨는 데 걸린 주가 5주 이하면 단발형, 10주 이상이면 완만형, 그 사이는 보류.</p>
-        <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시. 생존 확률 60% 이상이면서 감지 주 검색량이 역대 최고의 {meta.minSize}% 이상이면 이달의 맛 후보, {meta.minSize}% 미만이면 틈새 수요(꾸준하지만 작음). 40~60%는 4주 관찰, 40% 미만은 단기 대응.</p>
+        <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시. 생존 확률 60% 이상이면서 감지 주 검색량이 역대 최고의 {meta.minSize}% 이상이면 이달의 맛 후보. 확률은 높지만 규모가 {meta.minSize}% 미만이거나, 확률이 40~60%면 관찰. 40% 미만은 단기 대응.</p>
         <p className="mt-1"><b>한계:</b> 정답은 BR 판매가 아니라 검색량 유지 여부이고, 데이터랩은 키워드마다 최고 주를 100으로 맞추므로 키워드 간 절대 규모는 비교하지 않습니다. 계산은 model/ 폴더의 노트북과 export_radar.py.</p>
       </HowTo>
     </div>

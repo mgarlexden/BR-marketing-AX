@@ -144,7 +144,7 @@ def suggest(typ, prob, peak_month, size):
     if typ == '반복형':
         return '시즌', f'매년 {peak_month}월 전후에 돌아오는 재료. 내년 {peak_month}월 출시에 맞춰 시즌 한정으로 준비'
     if prob >= 0.6 and size < MIN_SIZE:
-        return '틈새', f'수요는 꾸준하지만 규모가 작음 (역대 최고의 {size:.0f}%). 이달의 맛보다는 기존 메뉴 보강이나 소량 한정으로 검토'
+        return '관찰', f'오래 가겠지만 규모가 작음 (역대 최고의 {size:.0f}%). 이달의 맛으로 내기엔 수요가 부족해서 더 커지는지 지켜보기'
     if prob >= 0.6:
         return '후보', '13주 뒤 출시 시점에도 수요가 남을 가능성이 높음. 이달의 맛 후보로 검토'
     if prob >= 0.4:

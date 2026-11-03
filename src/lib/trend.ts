@@ -2,7 +2,7 @@
 import type { ShapeName } from './data'
 
 export type RadarType = ShapeName | '보류'
-export type RadarAction = '후보' | '틈새' | '관찰' | '단기' | '시즌'
+export type RadarAction = '후보' | '관찰' | '단기' | '시즌'
 
 export interface RadarItem {
   kw: string
