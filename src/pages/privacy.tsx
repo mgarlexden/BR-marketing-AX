@@ -34,7 +34,7 @@ export default function Privacy() {
   const node = (on: boolean) => cn('flex flex-1 flex-col items-center gap-1.5 rounded-2xl border p-4 text-center text-sm transition-colors', on ? 'border-primary bg-accent' : 'border-border bg-muted/50')
   return (
     <div>
-      <PageHeader title="개인정보 보호" product={false} basis={{ level: '강함', why: '법규 근거는 시행령과 안내서 문구를 직접 확인했습니다. 연령·성별 추정은 구간 집계로만 다루며 켜기 전에 법적 확인이 필요합니다.' }} />
+      <PageHeader title="개인정보 보호" basis={{ level: '강함', why: '법규 근거는 시행령과 안내서 문구를 직접 확인했습니다. 연령·성별 추정은 구간 집계로만 다루며 켜기 전에 법적 확인이 필요합니다.' }} />
       <Card>
         <CardHeader title="데이터가 움직이는 길" right={<Segmented label="단계" value={step} onChange={(v) => setQ({ step: v })} options={STEPS.map((s, i) => ({ value: i + 1, label: `${i + 1}. ${s.t}` }))} />} />
         <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:items-center">

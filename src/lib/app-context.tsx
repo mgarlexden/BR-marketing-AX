@@ -1,10 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { build, SCENARIOS, type Data } from './data'
+import type { Data, Scenario } from './data'
 import type { Approvals } from './derived'
+import { dataFor, scenarioList } from './launch'
 
-export type RouteId = 'brief' | 'where' | 'why' | 'decisions' | 'trend' | 'privacy'
+export type RouteId = 'decide' | 'react' | 'feedback' | 'radar' | 'privacy'
 export const ROUTE_TITLES: Record<RouteId, string> = {
-  brief: '출시 현황', where: '매장 반응 분석', why: '매장 동선 분석', decisions: '의사결정 관리', trend: '트렌드 레이더', privacy: '개인정보 보호',
+  decide: '트렌드', react: '매장 반응', feedback: '환류', radar: '트렌드 레이더', privacy: '개인정보 보호',
+}
+/** 이전 화면 주소로 들어와도 새 구조로 보낸다 */
+const LEGACY: Record<string, { route: RouteId; q: Record<string, string> }> = {
+  brief: { route: 'react', q: { v: 'summary' } }, where: { route: 'react', q: { v: 'stores' } }, why: { route: 'react', q: { v: 'floor' } },
+  decisions: { route: 'react', q: { v: 'judge' } }, trend: { route: 'radar', q: {} },
 }
 const GLOBAL = ['launch']
 
@@ -12,7 +18,7 @@ type Q = Record<string, string>
 type Patch = Record<string, string | number | null | undefined>
 
 interface Ctx {
-  route: RouteId; q: Q; day: number; launch: string; data: Data
+  route: RouteId; q: Q; day: number; launch: string; scn: Scenario; scenarios: Scenario[]; data: Data
   appr: Approvals; setAppr: (key: string, val: Approvals[string] | null) => void; clearAppr: () => void
   setQ: (patch: Patch) => void; go: (route: RouteId, patch?: Patch) => void; href: (route: RouteId, patch?: Patch) => string
   dark: boolean; toggleDark: () => void
@@ -27,15 +33,16 @@ export const useApp = () => {
 function parse(): { route: RouteId; q: Q } {
   const h = location.hash.replace(/^#\/?/, '')
   const qi = h.indexOf('?')
-  const name = (qi < 0 ? h : h.slice(0, qi)) || 'brief'
-  const route = (name in ROUTE_TITLES ? name : 'home') as RouteId
+  const name = (qi < 0 ? h : h.slice(0, qi)) || 'decide'
+  let route = (name in ROUTE_TITLES ? name : 'decide') as RouteId
   const q: Q = {}
   if (qi >= 0) new URLSearchParams(h.slice(qi + 1)).forEach((v, k) => { q[k] = v })
-  if (!['a', 'b', 'c'].includes(q.launch)) q.launch = 'a'
+  const lg = LEGACY[name]
+  if (lg) { route = lg.route; Object.entries(lg.q).forEach(([k, v]) => { if (!q[k]) q[k] = v }); if (name === 'decisions' && q.tab === 'log') { route = 'feedback'; delete q.tab } }
   return { route, q }
 }
 
-const APPR_KEY = 'br-store-module-approvals-v4'
+const APPR_KEY = 'br-store-module-approvals-v5'
 function loadAppr(): Approvals { try { return JSON.parse(localStorage.getItem(APPR_KEY) || '{}') || {} } catch { return {} } }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -44,7 +51,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
 
   useEffect(() => {
-    if (!location.hash) history.replaceState(null, '', '#/brief?launch=a')
+    if (!location.hash) history.replaceState(null, '', '#/decide')
     const f = () => setSt(parse())
     f()
     window.addEventListener('hashchange', f)
@@ -88,10 +95,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const launch = st.q.launch
-  const data = useMemo(() => build(launch), [launch])
+  const scenarios = useMemo(() => scenarioList(appr), [appr])
+  const scn = scenarios.find((x) => x.id === st.q.launch) ?? scenarios[0]
+  const launch = scn.id
+  const data = useMemo(() => dataFor(scn), [scn])
   const value: Ctx = {
-    route: st.route, q: st.q, day: SCENARIOS[launch as 'a'].today, launch, data, appr, setAppr, clearAppr,
+    route: st.route, q: st.q, day: scn.today, launch, scn, scenarios, data, appr, setAppr, clearAppr,
     setQ, go, href, dark, toggleDark,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

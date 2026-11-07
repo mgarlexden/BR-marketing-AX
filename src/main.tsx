@@ -6,11 +6,10 @@ import { Shell } from '@/components/layout/shell'
 import { ErrorBoundary, PageSkeleton } from '@/components/page'
 
 const PAGES: Record<RouteId, React.LazyExoticComponent<() => React.JSX.Element>> = {
-  brief: lazy(() => import('@/pages/brief')),
-  where: lazy(() => import('@/pages/where')),
-  why: lazy(() => import('@/pages/why')),
-  decisions: lazy(() => import('@/pages/decisions')),
-  trend: lazy(() => import('@/pages/trend')),
+  decide: lazy(() => import('@/pages/decide')),
+  react: lazy(() => import('@/pages/react')),
+  feedback: lazy(() => import('@/pages/feedback')),
+  radar: lazy(() => import('@/pages/trend')),
   privacy: lazy(() => import('@/pages/privacy')),
 }
 

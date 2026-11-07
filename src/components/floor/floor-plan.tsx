@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CAMERA, CELL, DOOR, FIXTURES, PLAN_H, PLAN_W, ZONES, heatCells, type FloorMetrics, type Track, type ZoneId } from '@/lib/floor'
+import { CAMERA, CELL, DOOR, FIXTURES, MERGED_SHOWCASE, PLAN_H, PLAN_W, ZONES, heatCells, type FloorMetrics, type Track, type ZoneId } from '@/lib/floor'
 import { cn } from '@/lib/utils'
 
 export type FloorMode = 'tracks' | 'flow' | 'heat'
@@ -10,7 +10,8 @@ const Y = (m: number) => M + m * S
 const W = PLAN_W * S + 2 * M
 const H = PLAN_H * S + 2 * M + 22
 
-const center = (z: ZoneId) => { const r = ZONES[z].rect; return { x: r.x + r.w / 2, y: r.y + r.h / 2 } }
+type ZoneMap = typeof ZONES
+const center = (z: ZoneId, zones: ZoneMap) => { const r = zones[z].rect; return { x: r.x + r.w / 2, y: r.y + r.h / 2 } }
 
 function interp(tr: Track, t: number) {
   const p = tr.pts
@@ -21,9 +22,12 @@ function interp(tr: Track, t: number) {
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, i: lo }
 }
 
-export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo }: {
+export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo, merged = false }: {
   tracks: Track[]; metrics: FloorMetrics; mode: FloorMode; clock: number | null; zoneInfo: Record<ZoneId, string[]>
+  /** true면 신제품 구역을 따로 지정하지 않은 상태: 쇼케이스 앞 한 구역으로 그린다 */
+  merged?: boolean
 }) {
+  const Z: ZoneMap = merged ? { ...ZONES, showcase: { ...ZONES.showcase, label: '쇼케이스 앞 (신제품 구역 미지정)', rect: MERGED_SHOWCASE } } : ZONES
   const [hover, setHover] = useState<ZoneId | null>(null)
   const heat = useMemo(() => heatCells(metrics), [metrics])
   const maxFlow = Math.max(1, ...metrics.flows.map((f) => f.n))
@@ -55,7 +59,7 @@ export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo }: {
         <g clipPath="url(#plan-clip)"><polygon points={wedge} fill="var(--primary)" fillOpacity={0.06} stroke="var(--primary)" strokeOpacity={0.35} strokeDasharray="5 5" /></g>
 
         {/* 설비 */}
-        {FIXTURES.map((f) => (
+        {FIXTURES.filter((f) => !(merged && f.id === 'pop')).map((f) => (
           <g key={f.id} pointerEvents="none">
             {f.round
               ? <circle cx={X(f.rect.x + f.rect.w / 2)} cy={Y(f.rect.y + f.rect.h / 2)} r={(f.rect.w * S) / 2} fill="var(--card)" stroke="var(--border)" strokeWidth={1.5} />
@@ -66,12 +70,18 @@ export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo }: {
           </g>
         ))}
         {/* 존 */}
-        {(Object.keys(ZONES) as ZoneId[]).map((z) => {
-          const r = ZONES[z].rect, on = hover === z
+        {(Object.keys(Z) as ZoneId[]).filter((z) => !(merged && z === 'pop')).map((z) => {
+          const r = Z[z].rect, on = hover === z
           return (
             <g key={z} onMouseEnter={() => setHover(z)} onMouseLeave={() => setHover(null)}>
-              <rect x={X(r.x)} y={Y(r.y)} width={r.w * S} height={r.h * S} rx={8} fill={ZONES[z].color} fillOpacity={on ? 0.24 : z === 'pop' ? 0.16 : 0.09} stroke={ZONES[z].color} strokeOpacity={on ? 0.9 : 0.5} strokeWidth={on ? 2 : 1.25} strokeDasharray={z === 'pop' ? undefined : '4 4'} />
-              <text x={X(r.x) + 8} y={Y(r.y) + 17} fontSize={12} fontWeight={z === 'pop' ? 700 : 600} fill="var(--foreground)" fillOpacity={0.8}>{ZONES[z].label}</text>
+              <rect x={X(r.x)} y={Y(r.y)} width={r.w * S} height={r.h * S} rx={8} fill={Z[z].color} fillOpacity={on ? 0.24 : z === 'pop' ? 0.16 : 0.09} stroke={Z[z].color} strokeOpacity={on ? 0.9 : 0.5} strokeWidth={on ? 2 : 1.25} strokeDasharray={z === 'pop' ? undefined : '4 4'} />
+              <text x={X(r.x) + 8} y={Y(r.y) + 17} fontSize={12} fontWeight={z === 'pop' ? 700 : 600} fill="var(--foreground)" fillOpacity={0.8}>{z === 'pop' ? '신제품 구역 (가정)' : Z[z].label}</text>
+              {z === 'pop' && (
+                <g pointerEvents="none">
+                  <circle cx={X(r.x + 1.75)} cy={Y(r.y + 0.62)} r={11} fill="var(--card)" stroke={Z[z].color} strokeWidth={2} />
+                  <text x={X(r.x + 1.75)} y={Y(r.y + 0.62) + 4} textAnchor="middle" fontSize={11} fontWeight={700} fill={Z[z].color}>통</text>
+                </g>
+              )}
             </g>
           )
         })}
@@ -102,7 +112,7 @@ export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo }: {
         {mode === 'flow' && (
           <g pointerEvents="none">
             {metrics.flows.filter((f) => f.n >= 2 && f.from !== f.to).map((f) => {
-              const a = center(f.from), b = center(f.to)
+              const a = center(f.from, Z), b = center(f.to, Z)
               const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1
               const nx = -dy / len, ny = dx / len
               const sh = 0.55, off = 0.12
@@ -145,7 +155,7 @@ export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo }: {
 
       {hover && (
         <div className="pointer-events-none absolute top-3 right-3 z-10 w-52 rounded-2xl border border-border bg-popover p-3 text-xs shadow-xl">
-          <p className="mb-1 flex items-center gap-2 font-semibold"><i className="size-2.5 rounded-full" style={{ background: ZONES[hover].color }} />{ZONES[hover].label}</p>
+          <p className="mb-1 flex items-center gap-2 font-semibold"><i className="size-2.5 rounded-full" style={{ background: Z[hover].color }} />{hover === 'pop' ? '신제품 구역 (가정)' : Z[hover].label}</p>
           {zoneInfo[hover].map((l, i) => <p key={i} className="text-muted-foreground">{l}</p>)}
         </div>
       )}
@@ -153,7 +163,7 @@ export function FloorPlan({ tracks, metrics, mode, clock, zoneInfo }: {
   )
 }
 
-export function FloorLegend({ mode }: { mode: FloorMode }) {
+export function FloorLegend({ mode, merged = false }: { mode: FloorMode; merged?: boolean }) {
   const item = (c: string, t: string) => <span className="flex items-center gap-2"><i className={cn('h-0.5 w-5 rounded-full', c)} />{t}</span>
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
@@ -161,6 +171,7 @@ export function FloorLegend({ mode }: { mode: FloorMode }) {
       {mode === 'flow' && <span>화살표가 굵을수록 그 존으로 옮겨 간 사람이 많습니다. 숫자는 표본 안의 인원입니다.</span>}
       {mode === 'heat' && <span>진할수록 그 자리(0.5m 칸)에 오래 머물렀습니다. 실제 매장에서 본사로 가는 집계 형태입니다.</span>}
       <span className="flex items-center gap-2"><i className="size-3 rounded-sm bg-primary" />가상 카메라와 시야각</span>
+      {!merged && <span className="flex items-center gap-2"><i className="grid size-3.5 place-items-center rounded-full border-2 border-[var(--chart-1)] text-[8px] font-bold" />신제품 통 (매장에서 지정, 가정)</span>}
     </div>
   )
 }

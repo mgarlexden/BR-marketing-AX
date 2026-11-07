@@ -13,10 +13,11 @@ import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
 import { EmptyState, HowTo, PageHeader } from '@/components/page'
 import { Pill } from '@/components/status'
 import { Sparkline, ZBar } from '@/components/charts/mini'
+import { EvidenceBadge } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 
 const COLORS: Record<StoreType, string> = { '대학가': 'var(--chart-1)', '오피스': 'var(--chart-2)', '주거': 'var(--chart-3)', '역세권': 'var(--chart-4)', '관광': 'var(--chart-5)' }
-type SortKey = 'name' | 'react' | 'visits' | 'conv' | 'rank'
+type SortKey = 'name' | 'react' | 'visits' | 'conv' | 'rank' | 'share'
 const STATUS_GROUP = { all: null, attention: ['check', 'stockout'], move: ['surge', 'drop'], normal: ['normal'] } as const
 
 export default function Where() {
@@ -26,6 +27,7 @@ export default function Where() {
   const view = q.view === 'curve' ? 'curve' : 'table'
   const [sk, sd] = (q.sort || 'react-desc').split('-') as [SortKey, 'asc' | 'desc']
   const text = (q.q || '').trim()
+  const grp = q.grp === 'pilot' || q.grp === 'ctrl' ? q.grp : 'all'
 
   const types = typeStats(d, D)
   const diag = useMemo(() => diagnose(d, D), [d, D])
@@ -36,13 +38,15 @@ export default function Where() {
     const p = st.series[D]
     const dr = diag.rows.find((r) => r.st.id === st.id)!
     const m = mv.find((r) => r.st.id === st.id)!
-    return { st, p, react: p.react, conv: dr.conv * 100, convGap: dr.y, status: status[st.id], rank: m.now, delta: m.delta, hasDelta: m.before != null, trail: st.series.slice(Math.max(0, D - 6), D + 1).map((x) => x.react) }
+    let so = 0, or = 0
+    for (let i = Math.max(0, D - 2); i <= D; i++) { so += st.series[i].sales; or += st.series[i].orders }
+    return { st, p, share: or ? so / or : 0, react: p.react, conv: dr.conv * 100, convGap: dr.y, status: status[st.id], rank: m.now, delta: m.delta, hasDelta: m.before != null, trail: st.series.slice(Math.max(0, D - 6), D + 1).map((x) => x.react) }
   }), [d, D, diag, mv, status])
 
   const shown = rows
-    .filter((r) => (!type || r.st.type === type) && (!STATUS_GROUP[sg] || (STATUS_GROUP[sg] as readonly string[]).includes(r.status.key)) && (!text || r.st.name.includes(text)))
+    .filter((r) => (!type || r.st.type === type) && (grp === 'all' || (grp === 'pilot') === r.st.pilot) && (!STATUS_GROUP[sg] || (STATUS_GROUP[sg] as readonly string[]).includes(r.status.key)) && (!text || r.st.name.includes(text)))
     .sort((a, b) => {
-      const k = { name: a.st.name.localeCompare(b.st.name, 'ko'), react: a.react - b.react, visits: a.p.visits - b.p.visits, conv: a.conv - b.conv, rank: a.rank - b.rank }[sk]
+      const k = { name: a.st.name.localeCompare(b.st.name, 'ko'), react: a.react - b.react, visits: a.p.visits - b.p.visits, conv: a.conv - b.conv, rank: a.rank - b.rank, share: a.share - b.share }[sk]
       return sd === 'asc' ? k : -k
     })
   const maxAbs = Math.max(0.3, ...rows.map((r) => Math.abs(r.react)))
@@ -103,25 +107,29 @@ export default function Where() {
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input type="search" value={q.q || ''} onChange={(e) => setQ({ q: e.target.value })} placeholder="매장 검색" aria-label="매장 검색" className="h-9 w-44 rounded-full border border-input bg-background pl-9 pr-3 text-sm" />
             </label>
+            <Segmented label="매장 구분" value={grp} onChange={(v) => setQ({ grp: v === 'all' ? '' : v })} options={[{ value: 'all', label: '전체' }, { value: 'pilot', label: '선출시' }, { value: 'ctrl', label: '대조 대상' }]} />
             <Segmented label="상태" value={sg} onChange={(v) => setQ({ st: v })} options={[{ value: 'all', label: '전체' }, { value: 'attention', label: '점검' }, { value: 'move', label: '급변' }, { value: 'normal', label: '정상' }]} />
             <span className="num ml-auto text-xs text-muted-foreground">{shown.length} / {rows.length}곳</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground" title="신제품 비중은 전체 주문 중 신제품 주문입니다. POS·키오스크 데이터가 필요합니다">신제품 비중<EvidenceBadge kind="ext" /></span>
           </div>
           {shown.length === 0 ? <div className="p-4"><EmptyState title="조건에 맞는 매장이 없습니다" action={{ label: '필터 지우기', onClick: () => setQ({ type: '', st: '', q: '' }) }} /></div> : (
             <Table wrapperClassName="max-h-[34rem]" className="[&_td]:py-1.5">
               <THead className="sticky top-0 z-10 bg-card">
-                <TR>{th('name', '매장')}{th('react', '반응')}{th('visits', '방문', true)}{th('conv', '구매 전환', true)}<TH>상태</TH>{th('rank', '순위', true)}<TH>추이</TH><TH className="text-right">동선</TH></TR>
+                <TR>{th('name', '매장')}<TH>구분</TH>{th('react', '반응')}{th('visits', '방문', true)}{th('conv', '구매 전환', true)}{th('share', '신제품 비중', true)}<TH>상태</TH>{th('rank', '순위', true)}<TH>추이</TH><TH className="text-right">동선</TH></TR>
               </THead>
               <TBody>
                 {shown.map((r) => (
                   <TR key={r.st.id} className="hover:bg-accent/40">
-                    <TD className="whitespace-nowrap font-semibold">{r.st.name}</TD>
+                    <TD className="whitespace-nowrap"><span className="font-semibold">{r.st.name}</span><span className="block text-[11px] leading-tight text-muted-foreground" title="유동인구는 행정동 하루 평균 추정">{r.st.place.gu} {r.st.place.dong} · 유동 {Math.round(r.st.place.flow / 1000)}천명{r.st.place.direct ? ' · 직영' : ''}</span></TD>
+                    <TD className="whitespace-nowrap">{r.st.pilot ? <Pill tone="primary">선출시</Pill> : <span className="text-xs text-muted-foreground">대조 대상</span>}</TD>
                     <TD className="whitespace-nowrap"><ZBar v={r.react} range={maxAbs} /><b className="num">{pct(r.react)}</b></TD>
                     <TD className="num text-right">{num(r.p.visits)}<span className="text-muted-foreground"> / {num(r.p.exp)}</span></TD>
                     <TD className="num whitespace-nowrap text-right">{r.conv.toFixed(0)}개<span className={cn('ml-1 text-xs', r.convGap <= -0.25 ? 'text-bad' : 'text-muted-foreground')}>{pct(r.convGap)}</span></TD>
+                    <TD className="num whitespace-nowrap text-right">{Math.round(r.share * 100)}%</TD>
                     <TD><Pill tone={r.status.tone}>{r.status.label}</Pill></TD>
                     <TD className="num whitespace-nowrap text-right">{r.rank}위{r.hasDelta && r.delta !== 0 && <span className={cn('ml-1 text-xs', r.delta > 0 ? 'text-good' : 'text-bad')}>{signed(r.delta)}</span>}</TD>
                     <TD><Sparkline values={r.trail} w={72} h={22} tone={r.react >= 0 ? 'main' : 'ctx'} /></TD>
-                    <TD className="text-right"><a href={href('why', { store: r.st.id })} aria-label={`${r.st.name} 동선 보기`} className="inline-flex size-8 items-center justify-center rounded-full text-primary hover:bg-accent"><ScanEye className="size-4" /></a></TD>
+                    <TD className="text-right"><a href={href('react', { v: 'floor', store: r.st.id })} aria-label={`${r.st.name} 동선 보기`} className="inline-flex size-8 items-center justify-center rounded-full text-primary hover:bg-accent"><ScanEye className="size-4" /></a></TD>
                   </TR>
                 ))}
               </TBody>
@@ -130,7 +138,7 @@ export default function Where() {
         </Card>
       )}
       <HowTo>
-        <p>반응 = 오늘 방문 ÷ 평소 예상 − 1 (평소는 출시 전 14일 평균에 요일과 기온을 맞춘 값). 구매 전환 = 존 방문 100명당 신제품 판매 수이고 오른쪽 값은 전 매장 중앙값 대비입니다. 순위는 최근 3일 평균 반응 기준이며, 3일 전과 비교해 5계단 이상 움직이고 전체 흐름과 다르게 달라진 매장만 급변으로 표시합니다. 구매 점검은 방문이 15% 이상 늘었는데 전환이 중앙값보다 25% 넘게 낮은 매장입니다.</p>
+        <p>반응 = 오늘 방문 ÷ 평소 예상 − 1 (평소는 출시 전 14일 평균에 요일과 기온을 맞춘 값). 구매 전환 = 존 방문 100명당 신제품 판매 수이고 오른쪽 값은 전 매장 중앙값 대비입니다. 순위는 최근 3일 평균 반응 기준이며, 3일 전과 비교해 5계단 이상 움직이고 전체 흐름과 다르게 달라진 매장만 급변으로 표시합니다. 구매 점검은 방문이 15% 이상 늘었는데 전환이 중앙값보다 25% 넘게 낮은 매장입니다. 선출시는 상권마다 먼저 출시한 1곳이고, 대조 대상은 같은 기간 미출시로 비교하는 매장입니다. 이 표의 값은 20곳 모두 출시된 뒤 모습이며, 미출시 대조값은 출시 현황의 선출시 효과 카드에서 봅니다.</p>
       </HowTo>
     </div>
   )

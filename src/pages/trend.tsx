@@ -188,7 +188,6 @@ export default function Trend() {
     <div>
       <PageHeader
         title="트렌드 레이더"
-        product={false}
         basis={{ level: '실데이터', why: `네이버 데이터랩 주간 검색량 ${shortDate(meta.first)} ~ ${shortDate(meta.last)}, 키워드 ${scores.keywords}개` }}
         sub={`최근 3개월(${H}주) 안에 검색량이 급등한 키워드를 골라, 이달의 맛 출시까지 걸리는 ${H}주 뒤에도 수요가 남을지 예측합니다. 데이터 기준일 ${shortDate(meta.last)}.`}
       />

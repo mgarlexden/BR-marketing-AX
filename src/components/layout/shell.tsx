@@ -1,28 +1,33 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ClipboardCheck, LayoutDashboard, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
+import { Activity, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, Repeat2, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
 import { useApp, type RouteId } from '@/lib/app-context'
 import { pending } from '@/lib/derived'
+import { EvidenceLegend } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 
-const NAV: { id: RouteId; label: string; icon: typeof ScanEye }[] = [
-  { id: 'brief', label: '출시 현황', icon: LayoutDashboard },
-  { id: 'where', label: '매장 반응 분석', icon: MapPinned },
-  { id: 'why', label: '매장 동선 분석', icon: ScanEye },
-  { id: 'decisions', label: '의사결정 관리', icon: ClipboardCheck },
-  { id: 'trend', label: '트렌드 레이더', icon: TrendingUp },
+const NAV: { id: RouteId; label: string; sub: string; icon: typeof ScanEye }[] = [
+  { id: 'decide', label: '트렌드', sub: '1', icon: TrendingUp },
+  { id: 'react', label: '매장 반응', sub: '2', icon: MapPinned },
+  { id: 'feedback', label: '환류', sub: '3', icon: Repeat2 },
+  { id: 'radar', label: '트렌드 레이더', sub: '', icon: Activity },
 ]
 
-function Sidebar({ open, onClose, pendingCount, collapsed, onToggle }: { open: boolean; onClose: () => void; pendingCount: number; collapsed: boolean; onToggle: () => void }) {
+function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggle }: { open: boolean; onClose: () => void; pendingCount: number; radarPending: number; collapsed: boolean; onToggle: () => void }) {
   const { route, href, clearAppr } = useApp()
-  const item = (id: RouteId, label: string, Icon: typeof ScanEye, badge?: number) => {
+  const item = (id: RouteId, label: string, Icon: typeof ScanEye, badge?: number, sub?: string) => {
     const on = route === id
     return (
       <a key={id} href={href(id)} aria-current={on ? 'page' : undefined} onClick={onClose} title={collapsed ? label : undefined}
-        className={cn('relative flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          on ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60')}>
-        <Icon className="size-4 shrink-0" />
+        className={cn('relative flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          on ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60')}>
+        {sub ? (
+          <span className={cn('num grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold', on ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{sub}</span>
+        ) : <Icon className="size-5 shrink-0" />}
         <span className={cn('flex-1', collapsed && 'lg:hidden')}>{label}</span>
-        {!!badge && <span className={cn('num min-w-5 rounded-md bg-primary px-1.5 text-center text-[11px] font-bold leading-5 text-primary-foreground', collapsed && 'lg:absolute lg:right-0.5 lg:top-0.5 lg:min-w-4 lg:px-1 lg:text-[10px] lg:leading-4')}>{badge}</span>}
+        {!!badge && (
+          <span role="status" aria-label={`처리할 일 ${badge}건`}
+            className={cn('num grid min-w-5 place-items-center rounded-full bg-bad px-1.5 text-[11px] font-bold leading-5 text-white ring-2 ring-sidebar', collapsed && 'lg:absolute lg:right-1 lg:top-1 lg:min-w-4 lg:px-1 lg:text-[10px] lg:leading-4')}>{badge}</span>
+        )}
       </a>
     )
   }
@@ -39,8 +44,8 @@ function Sidebar({ open, onClose, pendingCount, collapsed, onToggle }: { open: b
           </button>
           <button type="button" onClick={onClose} aria-label="메뉴 닫기" className="ml-auto rounded-lg p-1.5 text-muted-foreground hover:bg-sidebar-accent active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"><X className="size-5" /></button>
         </div>
-        <nav aria-label="메뉴" className="flex flex-col gap-0.5">
-          {NAV.map((n) => item(n.id, n.label, n.icon, n.id === 'decisions' ? pendingCount : undefined))}
+        <nav aria-label="메뉴" className="flex flex-col gap-2">
+          {NAV.map((n) => item(n.id, n.label, n.icon, n.id === 'react' ? pendingCount : n.id === 'feedback' ? radarPending : undefined, n.sub))}
         </nav>
         <div className="mt-auto flex flex-col gap-3 border-t border-sidebar-border pt-3">
           {item('privacy', '개인정보 보호', ShieldCheck)}
@@ -59,8 +64,9 @@ function Header({ onMenu }: { onMenu: () => void }) {
     <header className="sticky top-0 z-30 border-b border-border bg-background">
       <div className="flex items-center gap-x-4 px-4 py-2.5 lg:px-6">
         <button type="button" onClick={onMenu} aria-label="메뉴 열기" aria-expanded="false" aria-controls="sidebar" className={cn('grid size-9 place-items-center rounded-lg border border-input bg-card active:translate-y-px disabled:opacity-50 lg:hidden', FR)}><Menu className="size-5" /></button>
-        <a href={href('brief')} aria-label="배스킨라빈스 출시 현황" className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><img src={`${import.meta.env.BASE_URL}br-logo.png`} alt="배스킨라빈스 로고" className="h-9 w-auto" /></a>
+        <a href={href('decide')} aria-label="배스킨라빈스 트렌드" className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><img src={`${import.meta.env.BASE_URL}br-logo.png`} alt="배스킨라빈스 로고" className="h-9 w-auto" /></a>
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <EvidenceLegend />
           <span role="status" title="합성 데이터, 정확도 미검증" className="whitespace-nowrap rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground"><span className="sm:hidden">합성 데이터</span><span className="hidden sm:inline">합성 데이터, 정확도 미검증</span></span>
           <button type="button" onClick={toggleDark} aria-label={dark ? '라이트 모드' : '다크 모드'} className={cn('grid size-9 place-items-center rounded-lg border border-input bg-card hover:bg-accent active:translate-y-px disabled:opacity-50', FR)}>
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -84,7 +90,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [])
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1760px]">
-      <Sidebar open={open} onClose={() => setOpen(false)} pendingCount={pend.count} collapsed={collapsed} onToggle={toggle} />
+      <Sidebar open={open} onClose={() => setOpen(false)} pendingCount={Number(pend.dir) + Number(pend.fix)} radarPending={Number(pend.radar)} collapsed={collapsed} onToggle={toggle} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenu={() => setOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1360px] flex-1 px-4 pt-5 pb-12 lg:px-6">{children}</main>

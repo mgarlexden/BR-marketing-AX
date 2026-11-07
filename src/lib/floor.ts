@@ -15,7 +15,7 @@ export type ZoneId = 'entrance' | 'pop' | 'showcase' | 'queue' | 'pos' | 'freeze
 export const ZONE_ORDER: ZoneId[] = ['pos', 'queue', 'pop', 'showcase', 'freezer', 'seating', 'entrance']
 export const ZONES: Record<ZoneId, { label: string; rect: Rect; color: string }> = {
   entrance: { label: '입구', rect: { x: 2.4, y: 6.2, w: 2.2, h: 1.8 }, color: 'var(--muted-foreground)' },
-  pop: { label: '신제품 존', rect: { x: 4.6, y: 3.7, w: 2.4, h: 1.9 }, color: 'var(--chart-1)' },
+  pop: { label: '신제품 구역', rect: { x: 4.6, y: 3.7, w: 2.4, h: 1.9 }, color: 'var(--chart-1)' },
   showcase: { label: '맛 고르기', rect: { x: 7.0, y: 3.7, w: 3.4, h: 1.9 }, color: 'var(--chart-2)' },
   queue: { label: '대기줄', rect: { x: 8.6, y: 5.7, w: 2.0, h: 1.7 }, color: 'var(--chart-3)' },
   pos: { label: '계산대', rect: { x: 10.5, y: 3.7, w: 1.4, h: 1.9 }, color: 'var(--chart-5)' },
@@ -97,9 +97,9 @@ function buildPath(r: () => number, t0: number, wps: WP[]): Pt[] {
 
 export interface SimInput {
   seed: string; win: number; n: number
-  react: number // 신제품 존 반응 (평소 대비)
-  dwellMed: number // 신제품 존 체류 중앙값 (초)
-  buyFactor: number // 신제품 존을 본 사람이 구매로 이어질 상대 확률 (평소 1)
+  react: number // 신제품 구역 반응 (평소 대비)
+  dwellMed: number // 신제품 구역 체류 중앙값 (초)
+  buyFactor: number // 신제품 구역을 본 사람이 구매로 이어질 상대 확률 (평소 1)
   soldOut: boolean
   baseline: boolean // 출시 전 평소 동선
 }
@@ -250,17 +250,34 @@ export function interpret(after: FloorMetrics, before: FloorMetrics, ctx: { sold
   const topDrop = after.drop[0]
   const dropShare = topDrop ? topDrop.n / Math.max(1, after.leaveN) : 0
   const bullets = [
-    `신제품 존에 들어간 사람이 평소 ${pc(before.popRate)}에서 ${pc(after.popRate)}로 ${popUp >= 0 ? '늘었습니다' : '줄었습니다'} (${popUp >= 0 ? '+' : '−'}${Math.abs(Math.round(popUp * 100))}%p).`,
+    `신제품 구역에 들어간 사람이 평소 ${pc(before.popRate)}에서 ${pc(after.popRate)}로 ${popUp >= 0 ? '늘었습니다' : '줄었습니다'} (${popUp >= 0 ? '+' : '−'}${Math.abs(Math.round(popUp * 100))}%p).`,
     `그곳에 머문 시간(중앙값)은 평소 ${Math.round(before.popDwell)}초에서 ${Math.round(after.popDwell)}초입니다.`,
-    `신제품 존을 거친 사람 중 ${pc(after.popBuyRate)}가 계산대까지 갔습니다 (평소 ${pc(before.popBuyRate)}).`,
+    `신제품 구역을 거친 사람 중 ${pc(after.popBuyRate)}가 계산대까지 갔습니다 (평소 ${pc(before.popBuyRate)}).`,
   ]
   if (topDrop) bullets.push(`사지 않고 나간 사람의 ${pc(dropShare)}가 ${ZONES[topDrop.zone].label}에서 동선이 끝났습니다.`)
-  if (ctx.soldOut) return { tone: 'bad', title: '재고가 바닥나 놓치고 있습니다', bullets, actions: ['입고 일정을 먼저 확인하세요.', '신제품 존 POP에 품절 안내를 붙이세요.'] }
-  if (popUp >= 0.12 && buyDrop >= 0.15) return { tone: 'warn', title: '관심은 높은데 구매로 이어지지 않습니다', bullets, actions: ['신제품 존의 가격 표기와 시식 여부를 확인하세요.', '쇼케이스 앞 안내 문구와 진열 위치를 점검하세요.'] }
+  if (ctx.soldOut) return { tone: 'bad', title: '재고가 바닥나 놓치고 있습니다', bullets, actions: ['입고 일정을 먼저 확인하세요.', '신제품 구역 POP에 품절 안내를 붙이세요.'] }
+  if (popUp >= 0.12 && buyDrop >= 0.15) return { tone: 'warn', title: '관심은 높은데 구매로 이어지지 않습니다', bullets, actions: ['신제품 구역의 가격 표기와 시식 여부를 확인하세요.', '쇼케이스 앞 안내 문구와 진열 위치를 점검하세요.'] }
   if (popUp >= 0.12) return { tone: 'good', title: '신제품이 관심을 끌고 구매로 이어집니다', bullets, actions: ['재고 소진 속도를 보고 발주 권고를 확인하세요.'] }
-  if (popUp < 0.05) return { tone: 'neutral', title: '신제품 존이 눈에 띄지 않습니다', bullets, actions: ['입구에서 신제품 존이 보이는지 POP 위치를 확인하세요.'] }
+  if (popUp < 0.05) return { tone: 'neutral', title: '신제품 구역이 눈에 띄지 않습니다', bullets, actions: ['입구에서 신제품 구역이 보이는지 POP 위치를 확인하세요.'] }
   return { tone: 'neutral', title: '평소와 비슷한 흐름입니다', bullets, actions: ['며칠 더 지켜보세요.'] }
 }
+
+/** 신제품 구역을 따로 지정하지 않은 경우: 그 구역 체류를 쇼케이스 앞(맛 고르기)에 합쳐서 센다 */
+export function mergeNewZone(tracks: Track[]): Track[] {
+  return tracks.map((t) => {
+    const stays: Stay[] = []
+    t.stays.forEach((s) => {
+      const z: ZoneId = s.zone === 'pop' ? 'showcase' : s.zone
+      const last = stays[stays.length - 1]
+      if (last && last.zone === z && s.t0 - last.t1 <= 3) last.t1 = s.t1
+      else stays.push({ zone: z, t0: s.t0, t1: s.t1 })
+    })
+    return { ...t, stays, popVisited: false, lastZone: t.lastZone === 'pop' ? 'showcase' : t.lastZone }
+  })
+}
+
+/** 신제품 구역을 합친 도면에서 쇼케이스 앞 구역의 범위 */
+export const MERGED_SHOWCASE: Rect = { x: 4.6, y: 3.7, w: 5.8, h: 1.9 }
 
 export const heatCells = (m: FloorMetrics) => {
   const out: { x: number; y: number; v: number }[] = []

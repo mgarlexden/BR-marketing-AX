@@ -1,39 +1,81 @@
 import { useMemo } from 'react'
-import { ChevronRight, ClipboardCheck } from 'lucide-react'
+import { CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { useApp } from '@/lib/app-context'
-import { DIR_LABEL, DIR_RULE, diagnose, typeStats, verdict, verdictPhases, type Dir } from '@/lib/data'
-import { dateLabel, num, pct } from '@/lib/format'
-import { feed, pending } from '@/lib/derived'
+import { DIR_LABEL, DIR_RULE, stageStats, typeStats, verdict, verdictPhases, type Dir } from '@/lib/data'
+import { dateLabel, pct } from '@/lib/format'
+import { feed } from '@/lib/derived'
 import AdvancedStats, { type Kpi } from '@/components/ui/advanced-stats'
 import { ClippedAreaChart } from '@/components/ui/advanced-stats-utils/charts'
-import { Button } from '@/components/ui/button'
 import { Card, CardHeader } from '@/components/ui/card'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
 import { Day, Delta } from '@/components/figures'
 import { PageHeader, EmptyState } from '@/components/page'
 import { DirChip, Pill } from '@/components/status'
 import { Sparkline, ZBar } from '@/components/charts/mini'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { EvidenceBadge } from '@/components/evidence'
+import { DAYS } from '@/lib/data'
 
 const DIR_COLOR: Record<Dir, string> = { expand: 'var(--dir-expand)', maintain: 'var(--dir-maintain)', fix: 'var(--dir-fix)', wrap: 'var(--dir-wrap)', wait: 'var(--border)' }
 
+
+const pilotCfg = { pilot: { label: '선출시 매장', color: 'var(--primary)' }, ctrl: { label: '대조 매장', color: 'var(--muted-foreground)' } } satisfies ChartConfig
+
+/** 선출시 매장과 같은 기간 미출시로 가정한 대조 매장을 나란히 놓고 차이(순효과)를 본다 */
+function PilotCard() {
+  const { data: d, day: D } = useApp()
+  const nP = d.stores.filter((s) => s.pilot).length
+  const rows = Array.from({ length: DAYS + 1 }, (_, i) => ({ day: i, pilot: i <= D ? d.pilotAgg[i] : null, ctrl: i <= D ? d.ctrlAgg[i] : null }))
+  const net = d.netAgg[D]
+  const net3 = d.netAgg.slice(Math.max(0, D - 2), D + 1).reduce((a, b) => a + b, 0) / Math.min(3, D + 1)
+  const all = [...d.pilotAgg.slice(0, D + 1), ...d.ctrlAgg.slice(0, D + 1)]
+  const hi = Math.max(0.4, ...all), lo = Math.min(0, ...all), step = hi - lo > 1.2 ? 0.5 : 0.2
+  const pp2 = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%p`
+  return (
+    <Card className="mb-4">
+      <CardHeader title={`선출시 효과: 선출시 ${nP}곳 vs 대조 ${d.stores.length - nP}곳`} right={<span className="flex items-center gap-1.5 text-xs text-muted-foreground">대조는 같은 기간 미출시로 가정<EvidenceBadge kind="sim" /></span>} />
+      <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
+        <ChartContainer config={pilotCfg} className="aspect-auto h-52 w-full">
+          <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+            <XAxis dataKey="day" type="number" domain={[0, 28]} ticks={[0, 7, 14, 21, 28]} tickFormatter={(x) => `D+${x}`} tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis domain={[Math.floor(lo / step) * step, Math.ceil(hi / step) * step]} tickFormatter={(x) => pct(x)} tickLine={false} axisLine={false} width={48} tickCount={5} />
+            <ChartTooltip cursor={{ stroke: 'var(--border)' }} content={<ChartTooltipContent labelFormatter={(_, p) => `D+${p?.[0]?.payload?.day ?? ''}`} formatter={(v, n) => <span className="flex w-full justify-between gap-6"><span className="text-muted-foreground">{pilotCfg[n as keyof typeof pilotCfg]?.label}</span><span className="num font-semibold">{pct(Number(v))}</span></span>} />} />
+            <Line dataKey="pilot" stroke="var(--color-pilot)" strokeWidth={3} dot={false} isAnimationActive={false} />
+            <Line dataKey="ctrl" stroke="var(--color-ctrl)" strokeWidth={2} strokeDasharray="6 5" dot={false} isAnimationActive={false} />
+            <ReferenceLine x={D} stroke="var(--foreground)" />
+          </ComposedChart>
+        </ChartContainer>
+        <div className="flex flex-col gap-3 text-sm">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">순효과 (선출시 − 대조)</p>
+            <p className="num text-3xl font-bold tracking-tighter">{pp2(net)}</p>
+            <p className="text-xs text-muted-foreground">최근 3일 평균 <b className="num text-foreground">{pp2(net3)}</b></p>
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">날씨·요일 영향이 두 그룹에 똑같이 들어가므로 차이만 신제품 효과의 후보로 봅니다. 선출시 매장은 본사가 고르는 매장이라 이 차이를 가맹점 전체로 일반화하지 않습니다. 아래 20곳 합산은 확대 후 모습입니다.</p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export default function Brief() {
-  const { data: d, day: D, appr, href, go } = useApp()
+  const { data: d, day: D, href } = useApp()
   const v = useMemo(() => verdict(d, D), [d, D])
   const phases = useMemo(() => verdictPhases(d, D), [d, D])
-  const pend = pending(d, D, appr)
   const types = typeStats(d, D)
-  const lead = types.filter((t) => t.reached).sort((a, b) => a.peakDay - b.peakDay || b.peak - a.peak)[0]
   const items = useMemo(() => feed(d, D, 8), [d, D])
   const agg = d.agg[D], prev = D > 0 ? d.agg[D - 1] : agg
-  const flagsPrev = D > 0 ? diagnose(d, D - 1).rows.filter((r) => r.zone === 'flag').length : 0
-  const pp = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%p`
+  const pp = (x: number) => { const n = Math.round(x * 100); return `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}%p` }
   const maxAbs = Math.max(0.3, ...types.map((t) => Math.abs(t.now)))
 
+  const stg = useMemo(() => stageStats(d, D), [d, D])
+  const dv = (x: { now: number; before: number }) => x.now - x.before
   const kpis: Kpi[] = [
-    { label: '최근 3일 추세', hint: '3일 전보다 반응이 얼마나 변했는지', value: pp(v.slope), change: `정점 ${pct(v.peak)}`, tone: v.slope >= 0 ? 'good' : 'bad', accent: true },
-    { label: '구매 전환 점검 매장', hint: '방문은 늘었는데 구매 비율이 낮은 매장', value: `${v.flagged}곳`, change: `${v.flagged - flagsPrev >= 0 ? '+' : '−'}${Math.abs(v.flagged - flagsPrev)}`, tone: v.flagged ? 'bad' : 'good', accent: true },
-    { label: '놓친 판매(추정)', hint: '위 매장이 평균 구매 비율이었다면 더 팔렸을 수량', value: `${num(v.lostUnits)}개/일`, change: `${Math.round(v.lostShare * 100)}%`, tone: v.lostUnits > 1 ? 'bad' : 'good', accent: true },
-    { label: '반응 선두 상권', hint: '가장 빨리 정점에 닿은 상권', value: lead ? lead.type : '집계 중', change: lead ? `D+${lead.peakDay}` : '', tone: 'good' },
+    { label: '① 유입', hint: '방문 수가 평소보다 늘어난 정도 (최근 3일 평균)', value: pct(stg.inflow.now), change: pp(dv(stg.inflow)), tone: dv(stg.inflow) >= 0 ? 'good' : 'bad', accent: true, badge: <EvidenceBadge kind="ok" /> },
+    { label: '② 관심', hint: '쇼케이스 앞 체류가 평소보다 길어진 정도', value: pct(stg.interest.now), change: pp(dv(stg.interest)), tone: dv(stg.interest) >= 0 ? 'good' : 'bad', accent: true, badge: <EvidenceBadge kind="assume" note="쇼케이스 앞 구역을 매장에서 지정한다는 가정" /> },
+    { label: '③ 전환', hint: '방문 100명당 신제품 판매 수 (POS 필요)', value: `${stg.conv.now.toFixed(0)}개`, change: `${Math.round(dv(stg.conv)) > 0 ? '+' : Math.round(dv(stg.conv)) < 0 ? '−' : ''}${Math.abs(Math.round(dv(stg.conv)))}개`, tone: dv(stg.conv) >= 0 ? 'good' : 'bad', accent: true, badge: <EvidenceBadge kind="ext" /> },
+    { label: '④ 맛 단위', hint: '전체 주문 중 신제품 비중 (POS·키오스크 필요)', value: `${Math.round(stg.share.now * 100)}%`, change: pp(dv(stg.share)), tone: dv(stg.share) >= 0 ? 'good' : 'bad', accent: true, badge: <EvidenceBadge kind="ext" /> },
   ]
 
   const bands = phases.filter((p) => p.dir !== 'wait').map((p) => ({ from: p.from, to: p.to, color: DIR_COLOR[p.dir], label: p.to - p.from >= 2 ? DIR_LABEL[p.dir] : undefined }))
@@ -68,24 +110,16 @@ export default function Brief() {
     </div>
   )
 
-  const todo: string[] = []
-  if (pend.dir) todo.push(`방향 판단 (${DIR_LABEL[v.dir]} 권고)`)
-  if (pend.fix) todo.push(`${v.flagged}개 매장 보완 요청`)
-  if (pend.radar) todo.push('레이더 유형 보정')
 
   return (
     <div>
-      <PageHeader title="출시 현황" sub="반응 = 방문자 수가 평소보다 늘어난 정도. 가상 카메라가 센 20개 매장의 방문 인원을 합산해, 출시 전 14일 평균(요일·기온 보정)과 비교합니다." right={<span className="text-sm text-muted-foreground">기준일 <b className="text-foreground">{dateLabel(d, D)}</b></span>} />
+      <PageHeader title="출시 현황" right={<span className="text-sm text-muted-foreground">반응 = 방문이 평소보다 늘어난 정도 · 기준일 <b className="text-foreground">{dateLabel(d, D)}</b></span>} />
       <AdvancedStats
         chart={chart}
         goal={{ label: '현재 판정', title: DIR_LABEL[v.dir], value: `신뢰도 ${v.conf}`, target: `근거 ${v.days}일`, percent: (v.days / 15) * 100, note: DIR_RULE[v.dir] }}
-        note={{
-          icon: <ClipboardCheck className="size-4" />, title: '의사결정 대기', emphasis: pend.count > 0, figure: pend.count > 0 ? `${pend.count}건` : undefined,
-          body: todo.length ? <ul className="flex flex-col gap-1.5">{todo.map((t) => <li key={t} className="flex items-center gap-2 font-medium"><i className="size-1.5 rounded-full bg-white" />{t}</li>)}</ul> : '대기 중인 결정이 없습니다',
-          action: pend.count ? <Button variant="dark" size="sm" onClick={() => go('decisions')}>결정하기<ChevronRight /></Button> : undefined,
-        }}
         kpis={kpis}
       >
+        <PilotCard />
         <div className="grid gap-4 lg:grid-cols-5">
           <Card className="lg:col-span-3">
             <CardHeader title="변화 알림" />
@@ -96,20 +130,20 @@ export default function Brief() {
                     <span className="w-10 shrink-0 text-xs"><Day n={it.day} /></span>
                     <Pill tone={it.tone}>{it.tone === 'primary' ? '알림' : it.tone === 'warn' ? '점검' : '주의'}</Pill>
                     <span className="min-w-0 flex-1">{it.text}</span>
-                    {it.store && <a href={href('why', { store: it.store })} className="shrink-0 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm active:translate-y-px">동선</a>}
+                    {it.store && <a href={href('react', { v: 'floor', store: it.store })} className="shrink-0 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm active:translate-y-px">동선</a>}
                   </li>
                 ))}
               </ul>
             )}
           </Card>
           <Card className="lg:col-span-2">
-            <CardHeader title="상권별 반응" right={<a href={href('where')} className="text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm active:translate-y-px">전체 보기</a>} />
+            <CardHeader title="상권별 반응" right={<a href={href('react', { v: 'stores' })} className="text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm active:translate-y-px">전체 보기</a>} />
             <Table>
               <THead><TR><TH>상권</TH><TH>반응</TH><TH>추이</TH></TR></THead>
               <TBody>
                 {types.slice().sort((a, b) => b.now - a.now).map((t) => (
                   <TR key={t.type}>
-                    <TD><a href={href('where', { type: t.type })} className="font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm active:translate-y-px">{t.type}</a></TD>
+                    <TD><a href={href('react', { v: 'stores', type: t.type })} className="font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm active:translate-y-px">{t.type}</a></TD>
                     <TD className="whitespace-nowrap"><ZBar v={t.now} range={maxAbs} /><b className="num">{pct(t.now)}</b></TD>
                     <TD><Sparkline values={t.series.slice(-7)} w={72} h={22} tone={t.now >= 0 ? 'main' : 'ctx'} /></TD>
                   </TR>

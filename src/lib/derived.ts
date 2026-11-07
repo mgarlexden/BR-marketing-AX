@@ -50,7 +50,23 @@ const LABEL: Record<Dir, string> = { wait: '관찰 중', expand: '확대', maint
 export interface DirDecision { kind: 'dir'; day: number; choice: Dir; rec: Dir; note: string }
 export interface FixRequest { kind: 'fix'; day: number; stores: string[] }
 export interface RadarApproval { kind: 'radar'; state: 'approved' | 'deferred'; day: number; curve?: 'burst' | 'slow' | 'wave'; peakVal?: number; shape?: string }
-export type Approvals = Record<string, DirDecision | FixRequest | RadarApproval>
+/** 감지·결정 화면에서 내린 출시 결정. 결정 시점의 예측과 기대효과를 그대로 얼려 둔다 */
+export interface LaunchDecision {
+  kind: 'launch'; kw: string; id: string; /** 맛 후보는 레이더 유형, 콜라보는 '콜라보' */ type: string; launch?: '새로운 맛' | '콜라보'; prob: number; detected: string; stores: string[]
+  price: number; cannibal: number
+  exp: { visitLo: number; visitHi: number; salesLo: number; salesHi: number }
+}
+export interface SkipDecision { kind: 'skip'; kw: string; prob: number; type: string }
+/** 환류 화면의 학습 판단 */
+export type Cause = 'radar' | 'ops' | 'event'
+export interface LearnDecision { kind: 'learn'; scn: string; day: number; cause: Cause; use: 'use' | 'exclude' | 'hold'; note: string }
+export type Approvals = Record<string, DirDecision | FixRequest | RadarApproval | LaunchDecision | SkipDecision | LearnDecision>
+
+export const launchKey = (kw: string) => `launch:${kw}`
+export const skipKey = (kw: string) => `skip:${kw}`
+export const learnKey = (scn: string) => `${scn}:learn`
+export const launchesOf = (appr: Approvals): LaunchDecision[] => Object.values(appr).filter((v): v is LaunchDecision => v.kind === 'launch')
+export const skipsOf = (appr: Approvals): SkipDecision[] => Object.values(appr).filter((v): v is SkipDecision => v.kind === 'skip')
 
 export const dirKey = (scn: string, day: number) => `${scn}:dir:${day}`
 export const fixKey = (scn: string, day: number) => `${scn}:fix:${day}`

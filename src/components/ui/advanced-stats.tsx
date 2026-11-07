@@ -17,12 +17,14 @@ export interface Kpi {
   tone: 'good' | 'bad'
   /** true면 값 자체를 좋고 나쁨 색으로 칠한다 */
   accent?: boolean
+  /** 라벨 옆에 붙이는 근거 배지 */
+  badge?: React.ReactNode
 }
 
 export interface AdvancedStatsProps {
   chart: React.ReactNode
   goal: { label: string; title: string; value: string; target: string; percent: number; note?: React.ReactNode }
-  note: { icon: React.ReactNode; title: string; body: React.ReactNode; action?: React.ReactNode; figure?: React.ReactNode; emphasis?: boolean }
+  note?: { icon: React.ReactNode; title: string; body: React.ReactNode; action?: React.ReactNode; figure?: React.ReactNode; emphasis?: boolean }
   kpis: Kpi[]
   children?: React.ReactNode
 }
@@ -65,6 +67,7 @@ export default function AdvancedStats({ chart, goal, note, kpis, children }: Adv
             </div>
           </TimelineAnimation>
 
+          {note && (
           <TimelineAnimation
             animationNum={3}
             timelineRef={timelineRef}
@@ -82,6 +85,7 @@ export default function AdvancedStats({ chart, goal, note, kpis, children }: Adv
             <div className={cn('text-sm', note.emphasis ? 'text-primary-foreground/90' : 'text-muted-foreground')}>{note.body}</div>
             {note.action && <div className="mt-4">{note.action}</div>}
           </TimelineAnimation>
+          )}
         </div>
       </div>
 
@@ -99,7 +103,7 @@ export default function AdvancedStats({ chart, goal, note, kpis, children }: Adv
                 : 'hover:border-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10',
             )}
           >
-            <p className="text-xs font-semibold text-muted-foreground">{kpi.label}</p>
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">{kpi.label}{kpi.badge}</p>
             <p className="mb-2 mt-0.5 min-h-8 text-[11px] leading-snug text-muted-foreground/80">{kpi.hint}</p>
             <div className="flex items-baseline justify-between gap-2">
               <p className={cn('text-2xl font-bold tracking-tighter', /^[+−-]?\d/.test(kpi.value) && 'num', kpi.accent && (kpi.tone === 'good' ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'))}>{kpi.value}</p>

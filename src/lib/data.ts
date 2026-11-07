@@ -4,22 +4,27 @@ export const DAYS = 28 // 출시 후 D+0 ~ D+28
 export const PRE = 14 // 출시 전 베이스라인 일수
 /** 화면의 "오늘". 제품마다 출시일은 오늘에서 현재 경과일을 뺀 날이다. */
 export const REFERENCE_DATE = new Date(2026, 10, 3)
-export const TYPES = ['대학가', '오피스', '주거', '역세권', '관광'] as const
+import { PLACES, type Place } from './stores'
+export const TYPES =['대학가', '오피스', '주거', '역세권', '관광'] as const
 export type StoreType = (typeof TYPES)[number]
 export type Kind = 'burst' | 'slow' | 'wave'
 export type ShapeName = '단발형' | '완만형' | '반복형'
 
 export type LaunchKind = '새로운 맛' | '콜라보' | '캠페인'
 export interface Scenario {
-  id: 'a' | 'b' | 'c'; label: string; launch: LaunchKind; shape: ShapeName; kind: Kind; radarKind: Kind; radarShape: ShapeName
+  id: string; label: string; launch: LaunchKind; shape: ShapeName; kind: Kind; radarKind: Kind; radarShape: ShapeName
   /** 출시 후 현재 경과일 (오늘 기준 D+N) */
   today: number
   /** 제품 선택 옆에 보여 줄 한 줄 설명 (가상) */
   blurb: string
+  /** 선출시 매장을 직접 고른 경우 그 목록. 없으면 상권마다 1곳 */
+  pilotIds?: string[]
+  /** 이 맛이 출시 결정으로 만들어진 경우 레이더 키워드 */
+  kw?: string
 }
 export const SCENARIOS: Record<'a' | 'b' | 'c', Scenario> = {
   a: { id: 'a', label: '솔티 캐러멜 크런치', launch: '새로운 맛', shape: '단발형', kind: 'burst', radarKind: 'slow', radarShape: '완만형', today: 5,
-    blurb: '이달의 맛 신제품. 달콤짠 캐러멜에 바삭한 크런치를 더한 시즌 한정 맛으로, 전 매장 동시 출시.' },
+    blurb: '이달의 맛 신제품. 달콤짠 캐러멜에 바삭한 크런치를 더한 시즌 한정 맛. 매장 20곳 중 5곳이 먼저 출시.' },
   b: { id: 'b', label: '달빛토끼 루나 콜라보', launch: '콜라보', shape: '완만형', kind: 'slow', radarKind: 'slow', radarShape: '완만형', today: 12,
     blurb: '캐릭터 루나와 함께한 시즌 메뉴와 한정 굿즈. 팬 방문을 늘리는 것이 목표인 4주 콜라보.' },
   c: { id: 'c', label: '주말 더블업 캠페인', launch: '캠페인', shape: '반복형', kind: 'wave', radarKind: 'burst', radarShape: '단발형', today: 18,
@@ -27,7 +32,7 @@ export const SCENARIOS: Record<'a' | 'b' | 'c', Scenario> = {
 }
 export const launchDate = (scn: Scenario) => new Date(REFERENCE_DATE.getTime() - scn.today * 86400000)
 
-const TYPE_SPEC: Record<StoreType, { base: number; speed: number; amp: number; wk: number[] }> = {
+export const TYPE_SPEC: Record<StoreType, { base: number; speed: number; amp: number; wk: number[] }> = {
   '대학가': { base: 160, speed: 0.85, amp: 1.2, wk: [1.0, 1.05, 1.05, 1.05, 1.1, 0.8, 0.6] },
   '오피스': { base: 120, speed: 1.0, amp: 0.85, wk: [1.1, 1.12, 1.1, 1.08, 1.0, 0.55, 0.45] },
   '주거': { base: 90, speed: 1.3, amp: 0.75, wk: [0.85, 0.85, 0.9, 0.9, 1.0, 1.25, 1.25] },
@@ -65,7 +70,7 @@ export function unit(kind: Kind, d: number, speed: number): number {
   const s2 = 14 * Math.min(speed, 1.1)
   return 0.3 * gam(d + 0.6, 2.5 * speed) + (d >= s2 - 0.6 ? gam(d - s2 + 0.6, 3 * speed) : 0)
 }
-const SCN_AMP: Record<Kind, number> = { burst: 0.78, slow: 0.58, wave: 0.7 }
+export const SCN_AMP: Record<Kind, number> = { burst: 0.78, slow: 0.58, wave: 0.7 }
 
 export interface DayInfo { d: number; date: Date; dow: number; temp: number; tf: number }
 function dayInfo(i: number, launch: Date): DayInfo {
@@ -79,20 +84,26 @@ function dayInfo(i: number, launch: Date): DayInfo {
 export interface DayPoint {
   d: number; visits: number; exp: number; expRaw: number; react: number; reactRaw: number
   dwell: number; sales: number; stock: number; out: boolean
+  /** 같은 날 신제품이 없었다면(대조 매장 가정) 방문 수와 반응. 같은 기준선·요일·기온 요인만 반영한 합성 값 */
+  ctrlVis: number; ctrlReact: number
+  /** 그날 전체 주문 수(합성). 신제품 판매 비중 = sales / orders */
+  orders: number
 }
 export interface Store {
-  id: string; type: StoreType; name: string; base: number; dwell0: number; conv0: number; alloc: number; jitter: number
-  conv: number; lowConv: boolean; event?: boolean; baseline: number; baselineRaw: number; dwellBase: number; stock0: number
+  id: string; type: StoreType; name: string; place: Place; base: number; dwell0: number; conv0: number; alloc: number; jitter: number
+  conv: number; lowConv: boolean; event?: boolean; /** 선출시 매장 (상권마다 1곳) */ pilot: boolean; baseline: number; baselineRaw: number; dwellBase: number; stock0: number
   series: DayPoint[]
 }
 export interface Data {
   scn: Scenario; days: DayInfo[]; pre: DayInfo[]; stores: Store[]; agg: number[]; aggRaw: number[]; byType: Record<StoreType, number[]>
+  /** 선출시 매장 반응, 대조 매장(같은 기간 미출시 가정) 반응, 둘의 차이(순효과) */
+  pilotAgg: number[]; ctrlAgg: number[]; netAgg: number[]
 }
 
 export const shortName = (st: { name: string }) => st.name.replace(' 매장', '')
 
-export function build(scnId: string): Data {
-  const scn = SCENARIOS[(scnId as 'a') in SCENARIOS ? (scnId as 'a') : 'a']
+export function build(scnId: string, custom?: Scenario): Data {
+  const scn = custom ?? SCENARIOS[(scnId as 'a') in SCENARIOS ? (scnId as 'a') : 'a']
   const days: DayInfo[] = [], pre: DayInfo[] = []
   const launch = launchDate(scn)
   for (let i = -PRE; i <= DAYS; i++) (i < 0 ? pre : days).push(dayInfo(i, launch))
@@ -102,10 +113,10 @@ export function build(scnId: string): Data {
       const id = 's' + ('0' + (ti * 4 + n)).slice(-2)
       const r = rng(hash(scn.id + ':' + id + ':spec'))
       stores.push({
-        id, type: t, name: t + ' 매장 ' + n,
+        id, type: t, name: PLACES[ti * 4 + n - 1].name, place: PLACES[ti * 4 + n - 1],
         base: TYPE_SPEC[t].base * (0.85 + 0.3 * r()),
         dwell0: 15 + 7 * r(), conv0: 0.2 + 0.05 * r(), alloc: 0.8 + 1.0 * r(), jitter: 0.85 + 0.3 * r(),
-        conv: 1, lowConv: false, baseline: 0, baselineRaw: 0, dwellBase: 0, stock0: 0, series: [],
+        conv: 1, lowConv: false, pilot: false, baseline: 0, baselineRaw: 0, dwellBase: 0, stock0: 0, series: [],
       })
     }
   })
@@ -116,6 +127,9 @@ export function build(scnId: string): Data {
   const evPick = rng(hash(scn.id + ':event'))
   let nEv = 0
   while (nEv < 2) { const k2 = Math.floor(evPick() * stores.length); if (!stores[k2].event) { stores[k2].event = true; nEv++ } }
+
+  if (scn.pilotIds?.length) stores.forEach((st) => { st.pilot = scn.pilotIds!.includes(st.id) })
+  else TYPES.forEach((t, ti) => { stores[ti * 4 + Math.floor(rng(hash(scn.id + ':pilot:' + t))() * 4)].pilot = true })
 
   stores.forEach((st) => {
     const spec = TYPE_SPEC[st.type]
@@ -146,7 +160,15 @@ export function build(scnId: string): Data {
         if (outLeft === 0) stock = Math.round((st.base * st.conv0 * 1.3 * 12) / 10) * 10
       } else if (stock <= 0) outLeft = 2
       const dwell = st.dwell0 * (1 + 0.3 * rt) * (st.lowConv ? 1.25 : 1) * (1 + noise(r) * 0.6)
-      series.push({ d: dy.d, visits: vis, exp, expRaw: st.baselineRaw, react: vis / exp - 1, reactRaw: vis / st.baselineRaw - 1, dwell, sales: sold, stock, out: stockedOut })
+      series.push({ d: dy.d, visits: vis, exp, expRaw: st.baselineRaw, react: vis / exp - 1, reactRaw: vis / st.baselineRaw - 1, dwell, sales: sold, stock, out: stockedOut, ctrlVis: 0, ctrlReact: 0, orders: 0 })
+    })
+    // 새 필드는 별도 난수열로 만들어 기존 값이 바뀌지 않게 한다
+    const rc = rng(hash(scn.id + ':' + st.id + ':ctrl')), ro = rng(hash(scn.id + ':' + st.id + ':orders'))
+    series.forEach((pt, i) => {
+      const dy = days[i]
+      pt.ctrlVis = Math.round(st.base * spec.wk[dy.dow] * dy.tf * (1 + noise(rc)))
+      pt.ctrlReact = pt.ctrlVis / pt.exp - 1
+      pt.orders = Math.max(pt.sales, Math.round(pt.visits * 0.62 * (1 + noise(ro))))
     })
     st.series = series
   })
@@ -164,7 +186,16 @@ export function build(scnId: string): Data {
     byType[t] = []
     for (let d = 0; d <= DAYS; d++) byType[t].push(aggregate(list, d))
   })
-  return { scn, days, pre, stores, agg, aggRaw, byType }
+  const pilots = stores.filter((s2) => s2.pilot), ctrls = stores.filter((s2) => !s2.pilot)
+  const pilotAgg: number[] = [], ctrlAgg: number[] = []
+  for (let d = 0; d <= DAYS; d++) {
+    pilotAgg.push(aggOf(pilots, d).v)
+    let sv = 0, se = 0
+    ctrls.forEach((c) => { sv += c.series[d].ctrlVis; se += c.series[d].exp })
+    ctrlAgg.push(sv / se - 1)
+  }
+  const netAgg = pilotAgg.map((v, d) => v - ctrlAgg[d])
+  return { scn, days, pre, stores, agg, aggRaw, byType, pilotAgg, ctrlAgg, netAgg }
 }
 
 export function aggOf(list: Store[], d: number, raw = false) {
@@ -415,4 +446,25 @@ export const DIR_RULE: Record<Dir, string> = {
   maintain: '방향을 바꿀 신호가 없으면 유지',
   fix: '구매 점검 3곳 이상, 놓친 판매 8% 이상이면 보완',
   wrap: '반응 12% 미만이거나 25% 아래로 계속 내려가면 정리',
+}
+
+/* ---------- 매장 반응 4단계 (유입, 관심, 전환, 맛 단위) ---------- */
+export interface Stage { now: number; before: number }
+export interface Stages { inflow: Stage; interest: Stage; conv: Stage; share: Stage }
+/** 전체 20곳 기준. 최근 3일 값과 그 직전 3일 값 */
+export function stageStats(data: Data, D: number): Stages {
+  const at = (d: number) => {
+    const interest = mean(data.stores.map((st) => mean(lastN(st, d, 3, 'dwell')) / st.dwellBase - 1))
+    let sales = 0, vis = 0, ord = 0, sold = 0
+    data.stores.forEach((st) => {
+      for (let i = Math.max(0, d - 2); i <= d; i++) {
+        const p = st.series[i]
+        ord += p.orders; sold += p.sales
+        if (!p.out) { sales += p.sales; vis += p.visits }
+      }
+    })
+    return { inflow: mean(data.agg.slice(Math.max(0, d - 2), d + 1)), interest, conv: vis ? (sales / vis) * 100 : 0, share: ord ? sold / ord : 0 }
+  }
+  const a = at(D), b = at(Math.max(0, D - 3))
+  return { inflow: { now: a.inflow, before: b.inflow }, interest: { now: a.interest, before: b.interest }, conv: { now: a.conv, before: b.conv }, share: { now: a.share, before: b.share } }
 }
