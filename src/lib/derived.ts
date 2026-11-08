@@ -52,7 +52,7 @@ export interface FixRequest { kind: 'fix'; day: number; stores: string[] }
 export interface RadarApproval { kind: 'radar'; state: 'approved' | 'deferred'; day: number; curve?: 'burst' | 'slow' | 'wave'; peakVal?: number; shape?: string }
 /** 감지·결정 화면에서 내린 출시 결정. 결정 시점의 예측과 기대효과를 그대로 얼려 둔다 */
 export interface LaunchDecision {
-  kind: 'launch'; kw: string; id: string; /** 맛 후보는 레이더 유형, 콜라보는 '콜라보' */ type: string; launch?: '새로운 맛' | '콜라보'; prob: number; detected: string; stores: string[]
+  kind: 'launch'; kw: string; /** 재료(kw)로 만든 조합 이름. 화면에는 이 이름으로 보이고 환류는 kw 기준으로 한다 */ concept?: string; id: string; /** 맛 후보는 레이더 유형, 콜라보는 '콜라보' */ type: string; launch?: '새로운 맛' | '콜라보'; prob: number; detected: string; stores: string[]
   price: number; cannibal: number
   exp: { visitLo: number; visitHi: number; salesLo: number; salesHi: number }
 }

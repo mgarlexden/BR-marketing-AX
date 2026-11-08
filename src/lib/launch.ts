@@ -11,13 +11,13 @@ const SHAPE_OF: Record<Kind, ShapeName> = { burst: '단발형', slow: '완만형
 export const kindOfType = (t: string): Kind => KIND_OF[t] ?? 'slow'
 
 /** 키워드 하나가 선출시 맛이 된다. 레이더가 본 유형이 예상이고, 실제 매장 반응은 합성이라 생존 확률이 높을수록 예상대로 갈 확률이 크다 */
-export function launchScenario(l: { kw: string; id: string; type: string; prob: number; stores: string[]; launch?: '새로운 맛' | '콜라보' }): Scenario {
+export function launchScenario(l: { kw: string; concept?: string; id: string; type: string; prob: number; stores: string[]; launch?: '새로운 맛' | '콜라보' }): Scenario {
   const radarKind = kindOfType(l.type)
   const r = rng(hash('outcome:' + l.kw))
   const others = (['burst', 'slow', 'wave'] as Kind[]).filter((k) => k !== radarKind)
   const kind = r() < 0.35 + 0.5 * l.prob ? radarKind : others[Math.floor(r() * others.length)]
   return {
-    id: l.id, label: l.kw, launch: l.launch ?? '새로운 맛', kind, radarKind, shape: SHAPE_OF[kind], radarShape: SHAPE_OF[radarKind], today: SIM_DAY,
+    id: l.id, label: l.concept ?? l.kw, launch: l.launch ?? '새로운 맛', kind, radarKind, shape: SHAPE_OF[kind], radarShape: SHAPE_OF[radarKind], today: SIM_DAY,
     blurb: l.launch === '콜라보' ? `${l.kw} 콜라보. 개발 13주 뒤 선출시 ${l.stores.length}곳 가정.` : `레이더가 ${l.type}으로 본 키워드로 출시한 맛. 개발 13주 뒤 선출시 ${l.stores.length}곳 가정.`, pilotIds: l.stores, kw: l.kw,
   }
 }
