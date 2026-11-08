@@ -9,7 +9,7 @@
 - 버팀 정답: 급등으로 늘어난 부분의 50% 이상이 13주 뒤(12~14주 3주 평균)에도 남아야 버팀
 - 힌트: 검색 곡선 8개 + 검색 규모 2개 + 30세 이상 검색 3개 (데이터랩 연령별)
 - 성능: 처음 보는 키워드 + 미래로 시험 (키워드 5묶음, 2024/2025 기준 시점, 묶음 5번 반복)
-- 경고: 평소 20대가 주로 찾던 디저트에 30세 이상이 갑자기 몰린 급등
+- 주의: 평소 20대가 주로 찾던 디저트에 30세 이상 검색이 갑자기 늘어난 급등
 
 실행: python model/export_radar.py   (레포 최상위 폴더에서, 5분 정도)
 필요: pandas, numpy, scipy, scikit-learn
@@ -193,7 +193,7 @@ S['grp_kw'] = S.kw.replace(SAME)
 N = S[S.typ != '반복형']
 print(f'급등 {len(S)}건 (새 트렌드 {len(N)}건), 버틴 비율 {S.y.mean():.3f} / 새 트렌드 {N.y.mean():.3f}')
 
-# 경고 기준: 30세 이상이 20대보다 더 오른 정도가 상위 25%
+# 주의 기준: 30세 이상이 20대보다 더 오른 정도가 상위 25%
 RUSH = float(S.spread.quantile(0.75))
 
 
@@ -275,8 +275,8 @@ def suggest(typ, prob, peak_month, weekly, warn):
     if typ == '반복형':
         return '시즌', f'매년 {peak_month}월 전후에 돌아오는 재료. 내년 {peak_month}월 출시에 맞춰 시즌 한정으로 준비'
     if warn:
-        return '단기', ('평소 20대가 주로 찾던 디저트에 30세 이상이 갑자기 몰린 급등. '
-                      f'과거 이런 급등은 {scores["warn_rate"] * 100:.0f}%만 13주를 버팀. 팝업, SNS 콘텐츠로 짧게 대응')
+        return '단기', ('30세 이상 검색이 갑자기 늘어난 급등. 평소엔 20대가 주로 찾던 디저트라, '
+                      f'과거 비슷한 급등은 {scores["warn_rate"] * 100:.0f}%만 13주를 버팀. 팝업, SNS 콘텐츠로 짧게 대응')
     if prob >= 0.6 and weekly < MIN_WEEKLY:
         return '관찰', f'오래 가겠지만 규모가 작음 (주 {weekly:,}회 검색). 이달의 맛으로 내기엔 수요가 부족해서 더 커지는지 지켜보기'
     if prob >= 0.6:
@@ -334,4 +334,4 @@ with open(OUT, 'w', encoding='utf-8') as fh:
     fh.write(body)
 print('저장:', os.path.relpath(OUT), f'{os.path.getsize(OUT) / 1024:.0f}KB')
 print('성능:', {k: v for k, v in scores.items() if k != 'models'})
-print('최근 급등:', len(items), '개, 경고', sum(i['warn'] for i in items), '개')
+print('최근 급등:', len(items), '개, 주의', sum(i['warn'] for i in items), '개')
