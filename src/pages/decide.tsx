@@ -74,7 +74,7 @@ function FlavorSection({ pick, onPick }: { pick: string; onPick: (p: Pick) => vo
           })}
         </TBody>
       </Table>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">후보는 {H}주 뒤 생존 확률 60% 이상이고 실제 검색이 주 {meta.minWeekly.toLocaleString()}회 이상인 키워드(반복형은 시즌 재출시, 주의가 붙은 급등은 제외)입니다. 해외에서 시작된 유행인지, 기존 스테디셀러와의 조합인지는 이 데이터로 알 수 없습니다. 급등 폭과 생존 확률의 계산은 <a href="#/radar" className="font-semibold text-primary underline underline-offset-4">트렌드 레이더</a>에 있습니다.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">후보는 {H}주 뒤 생존 확률 60% 이상이고 전성기 대비 {meta.minSize}% 이상인 키워드(반복형은 시즌 재출시)입니다. 해외에서 시작된 유행인지, 기존 스테디셀러와의 조합인지는 이 데이터로 알 수 없습니다. 급등 폭과 생존 확률의 계산은 <a href="#/radar" className="font-semibold text-primary underline underline-offset-4">트렌드 레이더</a>에 있습니다.</p>
     </Section>
   )
 }

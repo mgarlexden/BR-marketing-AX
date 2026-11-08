@@ -75,14 +75,14 @@ function Detail({ it }: { it: RadarItem }) {
 
       {it.warn && (
         <div className="mt-4 rounded-2xl border border-amber-400/50 bg-amber-400/10 p-4 text-sm leading-relaxed">
-          <p className="font-semibold text-amber-700 dark:text-amber-300">30세 이상 검색이 갑자기 늘어난 급등이에요</p>
-          <p className="mt-1 text-xs text-muted-foreground">평소엔 20대가 주로 찾던 디저트예요. 과거 비슷한 급등은 {Math.round(scores.warn_rate * 100)}%만 {H}주를 버텼어요 ({scores.warn_n}건, 새 트렌드 평균 {Math.round(scores.survive_rate * 100)}%). 이유는 아직 확인되지 않았어요.</p>
+          <p className="font-semibold text-amber-700 dark:text-amber-300">30세 이상 검색이 갑자기 늘어난 급등</p>
+          <p className="mt-1 text-xs text-muted-foreground">평소엔 20대가 주로 찾던 디저트입니다. 이런 급등은 과거 {scores.warn_n}건 중 {Math.round(scores.warn_rate * 100)}%만 {H}주를 버텼습니다. 다른 새 트렌드는 {Math.round(scores.survive_rate * 100)}%입니다. 왜 그런지는 아직 모릅니다.</p>
         </div>
       )}
 
       <div className="mt-4 rounded-2xl bg-muted/70 p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">{H}주 뒤에도 늘어난 검색의 절반 이상이 남을 확률</p>
+          <p className="text-xs font-medium text-muted-foreground">{H}주 뒤에도 남을 확률</p>
           <p className="num text-2xl font-bold tracking-tighter">{Math.round(it.prob * 100)}%</p>
         </div>
         <p className="mt-2 text-sm leading-relaxed">{it.suggestion}</p>
@@ -92,7 +92,7 @@ function Detail({ it }: { it: RadarItem }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label="주 검색 수" value={it.weekly.toLocaleString()} note={`${it.weekly < meta.minWeekly ? '규모 작음' : '규모 충분'}, 평소 ${it.usual.toLocaleString()}회`} />
+        <Stat label="주 검색 수" value={it.weekly.toLocaleString()} note={`평소 ${it.usual.toLocaleString()}회`} />
         <Stat label="전성기 대비" value={`${it.size}%`} note="역대 최고 주 = 100%" />
         <Stat label="평소 수요" value={`${Math.round(Math.min(it.base, 9.99) * 100)}%`} note="1년 평균 / 지금" />
         <Stat label="4주 전 대비" value={`${it.jump}배`} note="급등 폭" />
@@ -142,7 +142,7 @@ function Scores() {
   ]
   return (
     <Card>
-      <CardHeader title={`${H}주 생존 예측 성능`} description={`새 트렌드 급등 ${scores.samples.toLocaleString()}건. 처음 보는 키워드로, 2024년과 2025년 이후의 미래를 맞히게 시험 (키워드 5묶음, 묶음 나누기 ${scores.repeat}번 평균)`} />
+      <CardHeader title={`${H}주 생존 예측 성능`} description={`학습에 안 쓴 키워드로 2024년 이후를 맞혀 본 점수. 새 트렌드 급등 ${scores.samples.toLocaleString()}건`} />
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-muted/70 p-3"><p className="text-xs text-muted-foreground">꺼질 급등을 맞힘</p><p className="num text-2xl font-bold tracking-tighter">{Math.round(scores.hit_fail * 100)}%</p></div>
         <div className="rounded-2xl bg-muted/70 p-3"><p className="text-xs text-muted-foreground">버틸 급등을 맞힘</p><p className="num text-2xl font-bold tracking-tighter">{Math.round(scores.hit_survive * 100)}%</p></div>
@@ -156,10 +156,9 @@ function Scores() {
         ))}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        퍼센트는 균형 정확도(버틴 것과 못 버틴 것을 각각 맞힌 비율의 평균), AUC는 버틴 키워드에 더 높은 점수를 준 정도(0.5 찍기, 1.0 완벽).
-        새 트렌드 급등 중 {H}주를 버틴 건 {Math.round(scores.survive_rate * 100)}%뿐이라, 레이더는 '버틸 것' 보증보다 '꺼질 것' 거르기에 강합니다.
-        30세 이상 검색 힌트를 넣은 랜덤 포레스트를 화면 예측에 씁니다. 가장 크게 본 신호는 평소 수요(특히 30세 이상의 평소 수요).
-        버팀 기준을 30~70%로 바꿔도 정확도는 비슷했습니다.
+        새 트렌드는 10개 중 8개가 {H}주 안에 꺼집니다. 그래서 이 레이더는 버틸 것을 고르는 것보다 꺼질 것을 거르는 데 더 믿을 만합니다.
+        가장 크게 보는 신호는 평소 수요, 특히 30세 이상이 평소에 얼마나 찾던 디저트인지입니다.
+        퍼센트는 버틴 것과 꺼진 것을 각각 맞힌 비율의 평균이라 50%가 찍기입니다.
       </p>
     </Card>
   )
@@ -210,9 +209,9 @@ export default function Trend() {
 
       <Card className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <Kpi label="추적 중인 키워드" value={scores.keywords} note="디저트, 재료의 네이버 검색량" />
-        <Kpi label="최근 3개월 급등" value={fresh.length} note={`평소의 1.5배 이상 + 평소 흔들림의 ${meta.z}배 이상${warnCount ? `, 주의 ${warnCount}개` : ''}`} />
-        <Kpi label="이 중 이달의 맛 후보" value={count('후보')} note={`13주 뒤까지 남을 확률 60%+, 주 검색 ${meta.minWeekly.toLocaleString()}회+, 주의 아님`} />
-        <Kpi label="예측 정확도" value={`${Math.round(scores.model_bal * 100)}%`} note={`꺼질 것 ${Math.round(scores.hit_fail * 100)}%, 버틸 것 ${Math.round(scores.hit_survive * 100)}% 맞힘 (기존 규칙 ${Math.round(scores.rule_bal * 100)}%)`} />
+        <Kpi label="최근 3개월 급등" value={fresh.length} note={warnCount ? `주의 ${warnCount}개 포함` : '평소보다 확실히 많이 검색됨'} />
+        <Kpi label="이 중 이달의 맛 후보" value={count('후보')} note={`확률 60% 이상, 주 ${meta.minWeekly.toLocaleString()}회 이상`} />
+        <Kpi label="예측 정확도" value={`${Math.round(scores.model_bal * 100)}%`} note={`꺼질 것 ${Math.round(scores.hit_fail * 100)}%, 버틸 것 ${Math.round(scores.hit_survive * 100)}% 맞힘`} />
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -260,7 +259,7 @@ export default function Trend() {
         <p className="mt-1"><b>주 검색:</b> 급등 감지 주의 실제 검색 수. 데이터랩 곡선(키워드마다 최고 주 = 100)을 검색광고 API의 최근 한 달 실제 검색 수에 맞춰 환산한 값이라 키워드끼리 크기 비교가 됩니다. 전성기 대비는 그 키워드의 역대 최고 주를 100%로 본 값으로, 상세 화면에서 참고로만 보여 줍니다.</p>
         <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시. 주의가 붙은 급등은 단기 대응. 생존 확률 60% 이상이면서 실제 검색이 주 {meta.minWeekly.toLocaleString()}회 이상이면 이달의 맛 후보. 확률은 높지만 주 {meta.minWeekly.toLocaleString()}회 미만이거나, 확률이 40~60%면 관찰. 40% 미만은 단기 대응.</p>
         <p className="mt-1"><b>데이터:</b> 기존 79개에 위키백과 디저트 목록, 해외 바이럴 디저트, 네이버 연관 검색어로 찾은 디저트를 더했습니다(뜬 적 없는 디저트 포함). 실제 검색 수가 없거나 최근 검색이 0이거나 기록이 2년 미만인 키워드는 뺐습니다.</p>
-        <p className="mt-1"><b>한계:</b> 정답은 BR 판매가 아니라 검색량 유지 여부이고, 데이터랩은 키워드마다 최고 주를 100으로 맞추므로 키워드 간 절대 규모는 비교하지 않습니다. 계산은 model/ 폴더의 노트북과 export_radar.py.</p>
+        <p className="mt-1"><b>한계:</b> 정답은 BR 판매가 아니라 검색량 유지 여부이고, 데이터랩은 키워드마다 최고 주를 100으로 맞추므로 키워드 간 절대 규모는 비교하지 않습니다. 계산은 model/export_radar.py.</p>
       </HowTo>
     </div>
   )

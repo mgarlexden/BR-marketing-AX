@@ -36,6 +36,7 @@ H = 13            # BR 리드타임 (주)
 Z = 3             # 급등 인정: 평소 흔들림의 몇 배 이상 올랐나
 KEEP = 0.5        # 버팀: 늘어난 부분 중 몇 %가 13주 뒤에 남아야 하나
 RECENT = 26       # 최근 몇 주 안의 급등을 보여줄지
+MIN_SIZE = 20     # 1차 규모 기준. 결정 탭(decide.tsx)이 읽어서 남겨 둠, 레이더 판정에는 안 씀
 MIN_WEEKLY = 1000  # 이달의 맛 후보가 되려면 감지 주 실제 검색 수가 주 몇 회 이상이어야 하는지 (검색광고 API로 환산)
 SHOW_WEEKS = 156  # 상세 그래프에 넣을 기간 (3년)
 CUTOFFS = ['2024-01-01', '2025-01-01']  # 미래 시험 기준 시점
@@ -275,8 +276,7 @@ def suggest(typ, prob, peak_month, weekly, warn):
     if typ == '반복형':
         return '시즌', f'매년 {peak_month}월 전후에 돌아오는 재료. 내년 {peak_month}월 출시에 맞춰 시즌 한정으로 준비'
     if warn:
-        return '단기', ('30세 이상 검색이 갑자기 늘어난 급등. 평소엔 20대가 주로 찾던 디저트라, '
-                      f'과거 비슷한 급등은 {scores["warn_rate"] * 100:.0f}%만 13주를 버팀. 팝업, SNS 콘텐츠로 짧게 대응')
+        return '단기', '이달의 맛으로는 늦을 가능성이 높음. 팝업, SNS 콘텐츠로 짧게 대응'
     if prob >= 0.6 and weekly < MIN_WEEKLY:
         return '관찰', f'오래 가겠지만 규모가 작음 (주 {weekly:,}회 검색). 이달의 맛으로 내기엔 수요가 부족해서 더 커지는지 지켜보기'
     if prob >= 0.6:
@@ -320,7 +320,7 @@ for k, (grp, v, c) in use.items():
     ))
 items.sort(key=lambda r: -r['prob'])
 meta = dict(
-    minWeekly=MIN_WEEKLY, first=grid[0].strftime('%Y-%m-%d'), last=grid[-1].strftime('%Y-%m-%d'),
+    minWeekly=MIN_WEEKLY, minSize=MIN_SIZE, first=grid[0].strftime('%Y-%m-%d'), last=grid[-1].strftime('%Y-%m-%d'),
     seriesStart=grid[start].strftime('%Y-%m-%d'), weeks=int(n), horizon=H, recent=RECENT, z=Z, keep=KEEP,
 )
 
