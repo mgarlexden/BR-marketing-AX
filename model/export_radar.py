@@ -36,7 +36,7 @@ H = 13            # BR 리드타임 (주)
 Z = 3             # 급등 인정: 평소 흔들림의 몇 배 이상 올랐나
 KEEP = 0.5        # 버팀: 늘어난 부분 중 몇 %가 13주 뒤에 남아야 하나
 RECENT = 26       # 최근 몇 주 안의 급등을 보여줄지
-MIN_SIZE = 20     # 이달의 맛 후보가 되려면 감지 주 검색량이 역대 최고의 몇 % 이상이어야 하는지
+MIN_WEEKLY = 1000  # 이달의 맛 후보가 되려면 감지 주 실제 검색 수가 주 몇 회 이상이어야 하는지 (검색광고 API로 환산)
 SHOW_WEEKS = 156  # 상세 그래프에 넣을 기간 (3년)
 CUTOFFS = ['2024-01-01', '2025-01-01']  # 미래 시험 기준 시점
 REPEAT = 5        # 키워드 묶음 나누기 반복 횟수
@@ -271,14 +271,14 @@ scores['cluster_match'] = round(sum(c['match'] for c in clusters) / len(keys), 2
 
 
 # 8. 최근 급등 키워드 예측과 BR 제안
-def suggest(typ, prob, peak_month, size, warn):
+def suggest(typ, prob, peak_month, weekly, warn):
     if typ == '반복형':
         return '시즌', f'매년 {peak_month}월 전후에 돌아오는 재료. 내년 {peak_month}월 출시에 맞춰 시즌 한정으로 준비'
     if warn:
         return '단기', ('평소 20대가 주로 찾던 디저트에 30세 이상이 갑자기 몰린 급등. '
                       f'과거 이런 급등은 {scores["warn_rate"] * 100:.0f}%만 13주를 버팀. 팝업, SNS 콘텐츠로 짧게 대응')
-    if prob >= 0.6 and size < MIN_SIZE:
-        return '관찰', f'오래 가겠지만 규모가 작음 (전성기의 {size:.0f}%). 이달의 맛으로 내기엔 수요가 부족해서 더 커지는지 지켜보기'
+    if prob >= 0.6 and weekly < MIN_WEEKLY:
+        return '관찰', f'오래 가겠지만 규모가 작음 (주 {weekly:,}회 검색). 이달의 맛으로 내기엔 수요가 부족해서 더 커지는지 지켜보기'
     if prob >= 0.6:
         return '후보', '13주 뒤 출시 시점에도 수요가 남을 가능성이 높음. 이달의 맛 후보로 검토'
     if prob >= 0.4:
@@ -303,12 +303,13 @@ for k, (grp, v, c) in use.items():
         f.update(af); prob = float(final.predict_proba(pd.DataFrame([f])[COLS])[0, 1])
     else:
         prob = float(backup.predict_proba(pd.DataFrame([f])[FEATS + SCALE])[0, 1])
+    prob = round(prob, 2)   # 화면에 보이는 숫자로 판정
     share = info[k]['share']
     warn = bool(af is not None and share is not None and share < 0.5 and af['spread'] >= RUSH)
     actual = None if t + H + 1 >= n else bool((c[t+H-1:t+H+2].mean() - b) / (c[t] - b) >= KEEP)
     typ = info[k]['type']
     size = float(v[t])  # 데이터랩 값은 키워드별 역대 최고 = 100 이라 그대로 %
-    action, text = suggest(typ, prob, info[k]['peakMonth'], size, warn)
+    action, text = suggest(typ, prob, info[k]['peakMonth'], int(round(c[t])), warn)
     items.append(dict(
         kw=k, type=typ, prob=round(prob, 2), action=action, suggestion=text, size=round(size),
         detected=grid[t].strftime('%Y-%m-%d'), detectedIdx=t - start, actual=actual,
@@ -319,7 +320,7 @@ for k, (grp, v, c) in use.items():
     ))
 items.sort(key=lambda r: -r['prob'])
 meta = dict(
-    minSize=MIN_SIZE, first=grid[0].strftime('%Y-%m-%d'), last=grid[-1].strftime('%Y-%m-%d'),
+    minWeekly=MIN_WEEKLY, first=grid[0].strftime('%Y-%m-%d'), last=grid[-1].strftime('%Y-%m-%d'),
     seriesStart=grid[start].strftime('%Y-%m-%d'), weeks=int(n), horizon=H, recent=RECENT, z=Z, keep=KEEP,
 )
 

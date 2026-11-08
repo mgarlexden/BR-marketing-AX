@@ -41,7 +41,7 @@ export interface RadarItem {
 export interface RadarCluster { id: number; size: number; main: RadarType; match: number; members: string[]; curve: number[] }
 
 export interface RadarData {
-  meta: { minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number; z: number; keep: number }
+  meta: { minWeekly: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number; z: number; keep: number }
   scores: {
     samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number
     /** 버틴 급등 중 맞힌 비율, 꺼진 급등 중 맞힌 비율 */

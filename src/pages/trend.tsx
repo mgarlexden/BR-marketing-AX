@@ -92,8 +92,8 @@ function Detail({ it }: { it: RadarItem }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label="주 검색 수" value={it.weekly.toLocaleString()} note={`평소 ${it.usual.toLocaleString()}회`} />
-        <Stat label="전성기 대비" value={`${it.size}%`} note={it.size < meta.minSize ? '규모 작음' : '규모 충분'} />
+        <Stat label="주 검색 수" value={it.weekly.toLocaleString()} note={`${it.weekly < meta.minWeekly ? '규모 작음' : '규모 충분'}, 평소 ${it.usual.toLocaleString()}회`} />
+        <Stat label="전성기 대비" value={`${it.size}%`} note="역대 최고 주 = 100%" />
         <Stat label="평소 수요" value={`${Math.round(Math.min(it.base, 9.99) * 100)}%`} note="1년 평균 / 지금" />
         <Stat label="4주 전 대비" value={`${it.jump}배`} note="급등 폭" />
         <Stat label="꾸준히 검색된 주" value={it.steady > 104 ? '2년+' : `${it.steady}주`} note={it.steady <= 5 ? '갑자기 튐' : '원래 찾던 단어'} />
@@ -194,8 +194,8 @@ export default function Trend() {
       <TD className="whitespace-nowrap font-medium">{it.kw}</TD>
       <TD className="hidden text-xs text-muted-foreground sm:table-cell">{it.type}</TD>
       <TD><ProbBar p={it.prob} /></TD>
-      <TD className={cn('num whitespace-nowrap text-xs', it.size < meta.minSize ? 'text-muted-foreground' : 'font-semibold')} title="이 키워드가 가장 많이 검색됐던 주를 100%로 볼 때 지금 검색량">{it.size}%</TD>
-      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill>{it.action === '관찰' && <span className="ml-1.5 text-xs text-muted-foreground">{it.prob >= 0.6 ? '규모 작음' : '확률 애매'}</span>}{it.warn && <span className="ml-1.5 text-xs font-semibold text-bad">경고</span>}</TD>}
+      <TD className={cn('num whitespace-nowrap text-xs', it.weekly < meta.minWeekly ? 'text-muted-foreground' : 'font-semibold')} title="감지 주 실제 검색 수 (검색광고 API 월간 검색 수로 환산)">{it.weekly.toLocaleString()}회</TD>
+      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill>{it.action === '관찰' && <span className="ml-1.5 text-xs text-muted-foreground">{it.prob >= 0.6 && it.weekly < meta.minWeekly ? '규모 작음' : '확률 애매'}</span>}{it.warn && <span className="ml-1.5 text-xs font-semibold text-bad">경고</span>}</TD>}
       <TD className="num hidden text-right text-xs text-muted-foreground sm:table-cell">{shortDate(it.detected)}</TD>
     </TR>
   )
@@ -211,7 +211,7 @@ export default function Trend() {
       <Card className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <Kpi label="추적 중인 키워드" value={scores.keywords} note="디저트, 재료의 네이버 검색량" />
         <Kpi label="최근 3개월 급등" value={fresh.length} note={`평소의 1.5배 이상 + 평소 흔들림의 ${meta.z}배 이상${warnCount ? `, 경고 ${warnCount}개` : ''}`} />
-        <Kpi label="이 중 이달의 맛 후보" value={count('후보')} note={`13주 뒤까지 남을 확률 60%+, 전성기 대비 ${meta.minSize}%+`} />
+        <Kpi label="이 중 이달의 맛 후보" value={count('후보')} note={`13주 뒤까지 남을 확률 60%+, 주 검색 ${meta.minWeekly.toLocaleString()}회+, 경고 아님`} />
         <Kpi label="예측 정확도" value={`${Math.round(scores.model_bal * 100)}%`} note={`꺼질 것 ${Math.round(scores.hit_fail * 100)}%, 버틸 것 ${Math.round(scores.hit_survive * 100)}% 맞힘 (기존 규칙 ${Math.round(scores.rule_bal * 100)}%)`} />
       </Card>
 
@@ -220,7 +220,7 @@ export default function Trend() {
           <CardHeader title="최근 3개월 급등 키워드" description="지금 결정할 대상" right={<Segmented label="제안 필터" value={filter} options={opts} onChange={setFilter} />} />
           <Table wrapperClassName="max-h-[560px]">
             <THead>
-              <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>{H}주 생존</TH><TH title="이 키워드가 가장 많이 검색됐던 주를 100%로 볼 때 지금 검색량">전성기 대비</TH><TH>제안</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
+              <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>{H}주 생존</TH><TH title="감지 주 실제 검색 수 (검색광고 API 월간 검색 수로 환산)">주 검색</TH><TH>제안</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
             </THead>
             <TBody>{list.map((it) => row(it))}</TBody>
           </Table>
@@ -233,7 +233,7 @@ export default function Trend() {
               </summary>
               <Table wrapperClassName="mt-2">
                 <THead>
-                  <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>예측 생존</TH><TH title="이 키워드가 가장 많이 검색됐던 주를 100%로 볼 때 지금 검색량">전성기 대비</TH><TH>실제</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
+                  <TR><TH>키워드</TH><TH className="hidden sm:table-cell">유형</TH><TH>예측 생존</TH><TH title="감지 주 실제 검색 수 (검색광고 API 월간 검색 수로 환산)">주 검색</TH><TH>실제</TH><TH className="hidden text-right sm:table-cell">감지</TH></TR>
                 </THead>
                 <TBody>
                   {past.map((it) => row(it, <TD className="whitespace-nowrap"><Pill tone={it.actual ? 'good' : 'neutral'}>{it.actual ? '버팀' : '못 버팀'}</Pill>{(it.prob >= 0.5) === it.actual ? <span className="ml-1.5 text-xs text-good">맞음</span> : <span className="ml-1.5 text-xs text-bad">틀림</span>}</TD>))}
@@ -257,8 +257,8 @@ export default function Trend() {
         <p className="mt-1"><b>경고:</b> 30세 이상 검색 비중이 50% 미만인 디저트(20대 위주)에서, 30세 이상 검색이 20대보다 훨씬 더 오른 급등(상위 25%). 과거 이런 급등은 {Math.round(scores.warn_rate * 100)}%만 버텨서 확률과 상관없이 단기 대응으로 둡니다. 30세 이상 비중은 데이터랩 연령별 곡선으로 전체 곡선을 맞춰 추정한 값입니다.</p>
         <p className="mt-1"><b>예측 정확도:</b> 새 트렌드(반복형 제외) 급등 {scores.samples.toLocaleString()}건으로, 학습에 안 쓴 키워드의 2024년, 2025년 이후 급등을 맞힌 균형 정확도. 살아남은 것 중 맞힌 비율과 꺼진 것 중 맞힌 비율의 평균입니다. 기존 규칙은 최고점까지 5주 이하로 뜨면 못 버틴다고 보는 규칙(데이터랩 판정 탭에서 트렌드 25개로 찾은 것)입니다.</p>
         <p className="mt-1"><b>유형:</b> 1년 주기 자기상관 0.5 이상이고 10년 중 80% 이상 같은 철(±1달)에 정점이면 반복형. 아니면 최고점까지 뜨는 데 걸린 주가 5주 이하면 단발형, 10주 이상이면 완만형, 그 사이는 보류.</p>
-        <p className="mt-1"><b>전성기 대비:</b> 그 키워드가 2016년 이후 가장 많이 검색됐던 주를 100%로 볼 때 급등 감지 주의 검색량. 오래 가더라도 이 값이 작으면 찾는 사람 자체가 적다는 뜻입니다. 네이버 데이터랩은 키워드마다 따로 100을 맞추므로 키워드끼리의 크기 비교는 아닙니다.</p>
-        <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시. 생존 확률 60% 이상이면서 전성기 대비 {meta.minSize}% 이상이면 이달의 맛 후보. 확률은 높지만 규모가 {meta.minSize}% 미만이거나, 확률이 40~60%면 관찰. 40% 미만은 단기 대응.</p>
+        <p className="mt-1"><b>주 검색:</b> 급등 감지 주의 실제 검색 수. 데이터랩 곡선(키워드마다 최고 주 = 100)을 검색광고 API의 최근 한 달 실제 검색 수에 맞춰 환산한 값이라 키워드끼리 크기 비교가 됩니다. 전성기 대비는 그 키워드의 역대 최고 주를 100%로 본 값으로, 상세 화면에서 참고로만 보여 줍니다.</p>
+        <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시. 경고가 붙은 급등은 단기 대응. 생존 확률 60% 이상이면서 실제 검색이 주 {meta.minWeekly.toLocaleString()}회 이상이면 이달의 맛 후보. 확률은 높지만 주 {meta.minWeekly.toLocaleString()}회 미만이거나, 확률이 40~60%면 관찰. 40% 미만은 단기 대응.</p>
         <p className="mt-1"><b>데이터:</b> 기존 79개에 위키백과 디저트 목록, 해외 바이럴 디저트, 네이버 연관 검색어로 찾은 디저트를 더했습니다(뜬 적 없는 디저트 포함). 실제 검색 수가 없거나 최근 검색이 0이거나 기록이 2년 미만인 키워드는 뺐습니다.</p>
         <p className="mt-1"><b>한계:</b> 정답은 BR 판매가 아니라 검색량 유지 여부이고, 데이터랩은 키워드마다 최고 주를 100으로 맞추므로 키워드 간 절대 규모는 비교하지 않습니다. 계산은 model/ 폴더의 노트북과 export_radar.py.</p>
       </HowTo>
