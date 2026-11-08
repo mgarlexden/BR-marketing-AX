@@ -73,9 +73,16 @@ function Detail({ it }: { it: RadarItem }) {
         {yMax < 100 && `최근 2년이 잘 보이도록 세로축을 0~${yMax}로 확대 (전성기 = 100). `}점선: 급등 감지 {shortDate(it.detected)} / 음영: 그 후 {H}주 (출시까지 걸리는 시간){end > rows.length - 1 && ', 아직 진행 중'}
       </p>
 
+      {it.warn && (
+        <div className="mt-4 rounded-2xl border border-bad/40 bg-bad/5 p-4 text-sm leading-relaxed">
+          <p className="font-semibold text-bad">경고: 평소 20대가 찾던 디저트에 30세 이상이 갑자기 몰림</p>
+          <p className="mt-1 text-xs text-muted-foreground">과거 같은 모양의 급등 {scores.warn_n}건 중 {H}주를 버틴 건 {Math.round(scores.warn_rate * 100)}% (새 트렌드 평균 {Math.round(scores.survive_rate * 100)}%). 2016~2021년과 2022~2026년 모두 같은 패턴. 이유는 아직 확인되지 않음</p>
+        </div>
+      )}
+
       <div className="mt-4 rounded-2xl bg-muted/70 p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">{H}주 뒤에도 절반 이상 남을 확률</p>
+          <p className="text-xs font-medium text-muted-foreground">{H}주 뒤에도 늘어난 검색의 절반 이상이 남을 확률</p>
           <p className="num text-2xl font-bold tracking-tighter">{Math.round(it.prob * 100)}%</p>
         </div>
         <p className="mt-2 text-sm leading-relaxed">{it.suggestion}</p>
@@ -84,11 +91,13 @@ function Detail({ it }: { it: RadarItem }) {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Stat label="주 검색 수" value={it.weekly.toLocaleString()} note={`평소 ${it.usual.toLocaleString()}회`} />
         <Stat label="전성기 대비" value={`${it.size}%`} note={it.size < meta.minSize ? '규모 작음' : '규모 충분'} />
-        <Stat label="꾸준히 검색된 주" value={it.steady > 104 ? '2년+' : `${it.steady}주`} note={it.steady <= 5 ? '갑자기 튐' : '원래 찾던 단어'} />
         <Stat label="평소 수요" value={`${Math.round(Math.min(it.base, 9.99) * 100)}%`} note="1년 평균 / 지금" />
         <Stat label="4주 전 대비" value={`${it.jump}배`} note="급등 폭" />
+        <Stat label="꾸준히 검색된 주" value={it.steady > 104 ? '2년+' : `${it.steady}주`} note={it.steady <= 5 ? '갑자기 튐' : '원래 찾던 단어'} />
+        <Stat label="30세 이상 비중" value={it.oldShare === null ? '없음' : `${Math.round(it.oldShare * 100)}%`} note={it.oldShare === null ? '연령 데이터 없음' : it.oldShare < 0.5 ? '20대 위주' : '30세 이상 위주'} />
       </div>
     </Card>
   )
@@ -133,7 +142,11 @@ function Scores() {
   ]
   return (
     <Card>
-      <CardHeader title={`${H}주 생존 예측 성능`} description={`과거 급등 ${scores.samples}건, 처음 보는 키워드로 시험 (키워드 단위 5묶음 교차검증)`} />
+      <CardHeader title={`${H}주 생존 예측 성능`} description={`새 트렌드 급등 ${scores.samples.toLocaleString()}건. 처음 보는 키워드로, 2024년과 2025년 이후의 미래를 맞히게 시험 (키워드 5묶음, 묶음 나누기 ${scores.repeat}번 평균)`} />
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-muted/70 p-3"><p className="text-xs text-muted-foreground">꺼질 급등을 맞힘</p><p className="num text-2xl font-bold tracking-tighter">{Math.round(scores.hit_fail * 100)}%</p></div>
+        <div className="rounded-2xl bg-muted/70 p-3"><p className="text-xs text-muted-foreground">버틸 급등을 맞힘</p><p className="num text-2xl font-bold tracking-tighter">{Math.round(scores.hit_survive * 100)}%</p></div>
+      </div>
       <div className="flex flex-col gap-3">
         {bars.map((b) => (
           <div key={b.label}>
@@ -144,7 +157,9 @@ function Scores() {
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
         퍼센트는 균형 정확도(버틴 것과 못 버틴 것을 각각 맞힌 비율의 평균), AUC는 버틴 키워드에 더 높은 점수를 준 정도(0.5 찍기, 1.0 완벽).
-        세 모델 모두 기존 규칙보다 낫고, 그중 AUC가 가장 높은 랜덤 포레스트를 화면 예측에 씁니다. 모델이 가장 크게 본 신호는 평소 수요와 꾸준히 검색된 기간.
+        새 트렌드 급등 중 {H}주를 버틴 건 {Math.round(scores.survive_rate * 100)}%뿐이라, 레이더는 '버틸 것' 보증보다 '꺼질 것' 거르기에 강합니다.
+        30세 이상 검색 힌트를 넣은 랜덤 포레스트를 화면 예측에 씁니다. 가장 크게 본 신호는 평소 수요(특히 30세 이상의 평소 수요).
+        버팀 기준을 30~70%로 바꿔도 정확도는 비슷했습니다.
       </p>
     </Card>
   )
@@ -154,6 +169,7 @@ function Scores() {
 const fresh = items.filter((i) => i.actual === null)
 const past = items.filter((i) => i.actual !== null)
 const pastHit = past.filter((i) => (i.prob >= 0.5) === i.actual).length
+const warnCount = fresh.filter((i) => i.warn).length
 
 function Kpi({ label, value, note }: { label: string; value: React.ReactNode; note: string }) {
   return (
@@ -179,7 +195,7 @@ export default function Trend() {
       <TD className="hidden text-xs text-muted-foreground sm:table-cell">{it.type}</TD>
       <TD><ProbBar p={it.prob} /></TD>
       <TD className={cn('num whitespace-nowrap text-xs', it.size < meta.minSize ? 'text-muted-foreground' : 'font-semibold')} title="이 키워드가 가장 많이 검색됐던 주를 100%로 볼 때 지금 검색량">{it.size}%</TD>
-      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill>{it.action === '관찰' && <span className="ml-1.5 text-xs text-muted-foreground">{it.prob >= 0.6 ? '규모 작음' : '확률 애매'}</span>}</TD>}
+      {extra ?? <TD className="whitespace-nowrap"><Pill tone={ACTION[it.action].tone}>{ACTION[it.action].label}</Pill>{it.action === '관찰' && <span className="ml-1.5 text-xs text-muted-foreground">{it.prob >= 0.6 ? '규모 작음' : '확률 애매'}</span>}{it.warn && <span className="ml-1.5 text-xs font-semibold text-bad">경고</span>}</TD>}
       <TD className="num hidden text-right text-xs text-muted-foreground sm:table-cell">{shortDate(it.detected)}</TD>
     </TR>
   )
@@ -194,9 +210,9 @@ export default function Trend() {
 
       <Card className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <Kpi label="추적 중인 키워드" value={scores.keywords} note="디저트, 재료의 네이버 검색량" />
-        <Kpi label="최근 3개월 급등" value={fresh.length} note="평소보다 1.5배 이상 검색" />
+        <Kpi label="최근 3개월 급등" value={fresh.length} note={`평소의 1.5배 이상 + 평소 흔들림의 ${meta.z}배 이상${warnCount ? `, 경고 ${warnCount}개` : ''}`} />
         <Kpi label="이 중 이달의 맛 후보" value={count('후보')} note={`13주 뒤까지 남을 확률 60%+, 전성기 대비 ${meta.minSize}%+`} />
-        <Kpi label="예측 정확도" value={`${Math.round(scores.model_bal * 100)}%`} note={`기존 규칙은 ${Math.round(scores.rule_bal * 100)}%`} />
+        <Kpi label="예측 정확도" value={`${Math.round(scores.model_bal * 100)}%`} note={`꺼질 것 ${Math.round(scores.hit_fail * 100)}%, 버틸 것 ${Math.round(scores.hit_survive * 100)}% 맞힘 (기존 규칙 ${Math.round(scores.rule_bal * 100)}%)`} />
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -236,12 +252,14 @@ export default function Trend() {
       </div>
 
       <HowTo>
-        <p><b>급등 감지:</b> 이번 주 검색량이 5 이상이고 직전 12주(3개월) 평균의 1.5배 이상. 화면에는 최근 {H}주 안에 감지된 것만 결정 대상으로 보여 줍니다. 그보다 오래된 것은 출시 타이밍이 이미 지났기 때문입니다.</p>
-        <p className="mt-1"><b>{H}주 생존:</b> 감지 후 {H}주 뒤 검색량이 감지 시점의 50% 이상. 랜덤 포레스트가 감지 시점까지의 곡선 특징 8개(급등 폭, 평소 수요, 꾸준히 검색된 기간, 작년 같은 철 등)로 확률을 냅니다.</p>
-        <p className="mt-1"><b>예측 정확도:</b> 과거 급등 {scores.samples}건을 처음 보는 키워드로 시험한 균형 정확도. 살아남은 것 중 맞힌 비율과 꺼진 것 중 맞힌 비율의 평균입니다. 기존 규칙은 최고점까지 5주 이하로 뜨면 못 버틴다고 보는 규칙(데이터랩 판정 탭에서 트렌드 25개로 찾은 것)입니다.</p>
+        <p><b>급등 감지:</b> 이번 주 검색량이 5 이상이고 직전 12주(3개월) 평균의 1.5배 이상. 그리고 검색광고 API의 실제 검색 수로 환산했을 때 평소 흔들림의 {meta.z}배 이상 올라야 합니다(검색이 적은 키워드의 우연한 출렁임 제외). 화면에는 최근 {H}주 안에 감지된 것만 결정 대상으로 보여 줍니다. 그보다 오래된 것은 출시 타이밍이 이미 지났기 때문입니다.</p>
+        <p className="mt-1"><b>{H}주 생존:</b> 급등으로 늘어난 검색 중 {Math.round(meta.keep * 100)}% 이상이 {H}주 뒤(12~14주 3주 평균)에도 남으면 버팀. 평소 수준으로 돌아가기만 한 것은 못 버팀입니다. 랜덤 포레스트가 감지 시점까지의 곡선 특징 8개(급등 폭, 평소 수요, 꾸준히 검색된 기간, 작년 같은 철 등), 실제 검색 규모, 30세 이상 검색 곡선 3개로 확률을 냅니다.</p>
+        <p className="mt-1"><b>경고:</b> 30세 이상 검색 비중이 50% 미만인 디저트(20대 위주)에서, 30세 이상 검색이 20대보다 훨씬 더 오른 급등(상위 25%). 과거 이런 급등은 {Math.round(scores.warn_rate * 100)}%만 버텨서 확률과 상관없이 단기 대응으로 둡니다. 30세 이상 비중은 데이터랩 연령별 곡선으로 전체 곡선을 맞춰 추정한 값입니다.</p>
+        <p className="mt-1"><b>예측 정확도:</b> 새 트렌드(반복형 제외) 급등 {scores.samples.toLocaleString()}건으로, 학습에 안 쓴 키워드의 2024년, 2025년 이후 급등을 맞힌 균형 정확도. 살아남은 것 중 맞힌 비율과 꺼진 것 중 맞힌 비율의 평균입니다. 기존 규칙은 최고점까지 5주 이하로 뜨면 못 버틴다고 보는 규칙(데이터랩 판정 탭에서 트렌드 25개로 찾은 것)입니다.</p>
         <p className="mt-1"><b>유형:</b> 1년 주기 자기상관 0.5 이상이고 10년 중 80% 이상 같은 철(±1달)에 정점이면 반복형. 아니면 최고점까지 뜨는 데 걸린 주가 5주 이하면 단발형, 10주 이상이면 완만형, 그 사이는 보류.</p>
         <p className="mt-1"><b>전성기 대비:</b> 그 키워드가 2016년 이후 가장 많이 검색됐던 주를 100%로 볼 때 급등 감지 주의 검색량. 오래 가더라도 이 값이 작으면 찾는 사람 자체가 적다는 뜻입니다. 네이버 데이터랩은 키워드마다 따로 100을 맞추므로 키워드끼리의 크기 비교는 아닙니다.</p>
         <p className="mt-1"><b>제안:</b> 반복형은 시즌 재출시. 생존 확률 60% 이상이면서 전성기 대비 {meta.minSize}% 이상이면 이달의 맛 후보. 확률은 높지만 규모가 {meta.minSize}% 미만이거나, 확률이 40~60%면 관찰. 40% 미만은 단기 대응.</p>
+        <p className="mt-1"><b>데이터:</b> 기존 79개에 위키백과 디저트 목록, 해외 바이럴 디저트, 네이버 연관 검색어로 찾은 디저트를 더했습니다(뜬 적 없는 디저트 포함). 실제 검색 수가 없거나 최근 검색이 0이거나 기록이 2년 미만인 키워드는 뺐습니다.</p>
         <p className="mt-1"><b>한계:</b> 정답은 BR 판매가 아니라 검색량 유지 여부이고, 데이터랩은 키워드마다 최고 주를 100으로 맞추므로 키워드 간 절대 규모는 비교하지 않습니다. 계산은 model/ 폴더의 노트북과 export_radar.py.</p>
       </HowTo>
     </div>

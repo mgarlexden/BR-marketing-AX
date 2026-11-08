@@ -26,6 +26,14 @@ export interface RadarItem {
   base: number
   /** 직전 4주 평균 대비 몇 배 */
   jump: number
+  /** 감지 주 실제 검색 수 (검색광고 API 월간 검색 수로 환산, 주 단위) */
+  weekly: number
+  /** 직전 12주 평균 실제 검색 수 (주 단위) */
+  usual: number
+  /** 이 키워드 검색 중 30세 이상 비중 추정 (연령 데이터 없으면 null) */
+  oldShare: number | null
+  /** 평소 20대가 주로 찾던 디저트에 30세 이상이 갑자기 몰린 급등 */
+  warn: boolean
   /** meta.seriesStart 부터의 주간 검색량 (키워드별 최고 주 = 100) */
   series: number[]
 }
@@ -33,8 +41,15 @@ export interface RadarItem {
 export interface RadarCluster { id: number; size: number; main: RadarType; match: number; members: string[]; curve: number[] }
 
 export interface RadarData {
-  meta: { minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number }
-  scores: { samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number; models: { name: string; bal: number; auc: number; used: boolean }[] }
+  meta: { minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number; z: number; keep: number }
+  scores: {
+    samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number
+    /** 버틴 급등 중 맞힌 비율, 꺼진 급등 중 맞힌 비율 */
+    hit_survive: number; hit_fail: number; repeat: number
+    /** 경고 급등(20대 디저트에 30세 이상 몰림)이 과거에 버틴 비율과 건수 */
+    warn_rate: number; warn_n: number
+    models: { name: string; bal: number; auc: number; used: boolean; hit_survive: number; hit_fail: number }[]
+  }
   items: RadarItem[]
   clusters: RadarCluster[]
 }
