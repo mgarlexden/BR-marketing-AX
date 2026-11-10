@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Undo2 } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
 import { classify, DIR_LABEL, diagnose, shortName, verdict } from '@/lib/data'
@@ -157,7 +157,7 @@ function Log() {
   const rows = useMemo(() => {
     const r: Row[] = []
     let ord = 0
-    launchesOf(appr).forEach((l) => r.push({ sort: 1000 + ord++, when: <span className="text-xs">결정</span>, flavor: l.kw, kind: '출시 결정', body: <span className="text-xs">{l.launch === '콜라보' ? '콜라보 · ' : ''}선출시 {l.stores.length}곳, 기대 방문 +{Math.round(l.exp.visitLo * 100)}~{Math.round(l.exp.visitHi * 100)}%{l.launch === '콜라보' ? '' : `, 생존 확률 ${Math.round(l.prob * 100)}% (${shortDate(l.detected)} 감지)`}</span>, undo: () => setAppr(launchKey(l.kw), null) }))
+    launchesOf(appr).forEach((l) => r.push({ sort: 1000 + ord++, when: <span className="text-xs">결정</span>, flavor: l.concept ?? l.kw, kind: '출시 결정', body: <span className="text-xs">{l.launch === '콜라보' ? '콜라보 · ' : ''}선출시 {l.stores.length}곳, 기대 방문 +{Math.round(l.exp.visitLo * 100)}~{Math.round(l.exp.visitHi * 100)}%{l.launch === '콜라보' ? '' : `, 생존 확률 ${Math.round(l.prob * 100)}% (${shortDate(l.detected)} 감지)`}</span>, undo: () => setAppr(launchKey(l.kw), null) }))
     skipsOf(appr).forEach((s) => r.push({ sort: 1000 + ord++, when: <span className="text-xs">결정</span>, flavor: s.kw, kind: '출시 안 함', body: <span className="text-xs">생존 확률 {Math.round(s.prob * 100)}%. {H}주 뒤 실제 검색과 비교합니다</span>, undo: () => setAppr(skipKey(s.kw), null) }))
     scenarios.forEach((sc) => {
       const dd = dataFor(sc)
@@ -196,16 +196,18 @@ function Log() {
 }
 
 export default function Feedback() {
+  const { q } = useApp()
+  useEffect(() => { if (q.at === 'log') document.getElementById('decision-log')?.scrollIntoView() }, [q.at])
   return (
     <div>
       <PageHeader title="환류" loop={[6]}
-        sub="결정과 판정의 기록을 남기고, 레이더의 예측이 현실과 맞았는지 보고, 그 결과를 레이더 학습에 쓸지 정합니다."
+        sub="예측과 실제를 비교해 다음에 반영해요"
         basis={{ level: '약함', why: '검색 기준 비교는 실데이터입니다. 매장 쪽 비교는 합성 데이터라 절차를 시연하는 용도이고, 학습 반영은 사람이 승인한 뒤에만 합니다.' }} />
       <SearchCheck />
       <Cases />
       <LearnCard />
       <div className="mb-4"><RadarCard /></div>
-      <h2 className="mb-2 text-sm font-semibold">결정 로그</h2>
+      <h2 id="decision-log" className="mb-2 scroll-mt-20 text-sm font-semibold">결정 로그</h2>
       <Log />
       <HowTo title="환류 규칙">
         <p>두 종류의 정답을 따로 씁니다. 검색 기준은 출시 여부와 관계없이 모든 후보에 {H}주 뒤 정답이 생기고, 매장 기준은 선출시한 맛에만 생깁니다. 출시한 것만 학습하면 내가 고른 것만 배우는 편향이 생기므로 둘을 함께 봅니다.</p>
