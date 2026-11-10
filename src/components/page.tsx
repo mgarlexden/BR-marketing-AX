@@ -2,7 +2,19 @@ import { Component, createContext, useContext, type ErrorInfo, type ReactNode } 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { LoopBar } from '@/components/layout/loop-bar'
+
+/** 왼쪽 메뉴 탭(트렌드, 매장 반응, 환류)의 제목과 한 줄 설명. 설명은 20자 이내로 쓴다 */
+export function TabTitle({ title, desc, badge, children }: { title: string; desc?: ReactNode; badge?: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-extrabold tracking-tight">{title}{badge}</h1>
+        {desc && <p className="mt-1 text-sm text-muted-foreground">{desc}</p>}
+      </div>
+      {children}
+    </header>
+  )
+}
 
 /** 다른 화면 안에 탭으로 들어갈 때는 제목과 루프 띠를 숨기고 오른쪽 조작만 남긴다 */
 export const EmbeddedCtx = createContext(false)
@@ -12,19 +24,9 @@ export function PageHeader({ title, sub, right, basis, loop }: { title: string; 
   if (embedded) return right ? <div className="mb-3 flex flex-wrap items-center justify-end gap-2">{right}</div> : null
   if (loop) {
     return (
-      <header className="mb-5">
-        <LoopBar active={loop} />
-        <div className="mt-3 rounded-3xl bg-primary px-6 py-5 text-primary-foreground shadow-md">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
-              {basis && <span title={basis.why} className="cursor-help rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">근거 {basis.level}</span>}
-            </div>
-            {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
-          </div>
-          {sub && <p className="mt-2 max-w-4xl text-sm leading-relaxed text-primary-foreground/90">{sub}</p>}
-        </div>
-      </header>
+      <TabTitle title={title} desc={sub} badge={basis && <span title={basis.why} className="cursor-help rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">근거 {basis.level}</span>}>
+        {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
+      </TabTitle>
     )
   }
   return (

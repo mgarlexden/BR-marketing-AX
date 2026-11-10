@@ -11,7 +11,7 @@ import { conceptBase, conceptSub, conceptWhy, H, radarItem, SALE, timingOf, TREN
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
-import { HowTo } from '@/components/page'
+import { HowTo, TabTitle } from '@/components/page'
 import { Pill } from '@/components/status'
 import { Sparkline } from '@/components/charts/mini'
 import { EvidenceBadge } from '@/components/evidence'
@@ -468,7 +468,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
 }
 
 export default function Decide() {
-  const { appr, href } = useApp()
+  const { appr } = useApp()
   const { likes, toggle: toggleLike } = useLikes()
   const [themeId, setThemeId] = useState(TRENDS[0].id)
   const [query, setQuery] = useState('')
@@ -484,23 +484,19 @@ export default function Decide() {
   const leadItem = radarItem(concept.lead)
   const collab = collabs.find((c) => c.kw === collabKw) ?? collabs[0]
   const isCollab = tab === 'collab' && !!collab
-  const NAV = [{ label: '트렌드 감지', to: href('decide'), on: true }, { label: '매장 반응', to: href('react'), on: false }, { label: '환류', to: href('feedback'), on: false }]
 
   return (
     <div className="flavor-page">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <nav aria-label="루프 단계" className="flex gap-5">
-          {NAV.map((n) => <a key={n.label} href={n.to} aria-current={n.on ? 'step' : undefined} className={cn('rounded text-sm font-bold', FR, n.on ? 'text-foreground underline decoration-primary decoration-2 underline-offset-8' : 'text-foreground/70 hover:text-foreground')}>{n.label}</a>)}
-        </nav>
+      <TabTitle title="트렌드" desc="뜨는 맛을 찾고 출시를 결정해요">
         <label className="flex w-full items-center gap-2 border-b-2 border-primary/70 px-1 pb-1.5 sm:w-64">
           <span className="sr-only">맛, 재료 검색</span>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="맛·재료 검색" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
           <Search className="size-4 text-primary" aria-hidden />
         </label>
-      </div>
-      <header className="mb-3 mt-5 flex flex-wrap items-center justify-between gap-3">
+      </TabTitle>
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.7rem]">안녕하세요, 신제품 기획팀</h1>
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-[1.7rem]">안녕하세요, 신제품 기획팀</h2>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">이번 주 감지된 맛 트렌드를 누르면 출시 타이밍과 이달의 맛 후보가 나옵니다
             <span title={`맛 후보는 네이버 데이터랩 주간 검색량(${shortDate(meta.first)} ~ ${shortDate(meta.last)}) 실데이터입니다. 트렌드 묶음과 맛 조합은 팀 가설, 콜라보 곡선은 시연값, 기대효과는 가정입니다.`} className="cursor-help text-xs underline decoration-dotted underline-offset-4">근거 실데이터 + 가정</span>
           </p>

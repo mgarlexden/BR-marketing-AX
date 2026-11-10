@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, X } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
 import { classify, diagnose, mean, verdict, type Dir, type Store } from '@/lib/data'
@@ -9,8 +9,7 @@ import { num, pct } from '@/lib/format'
 import { Card, CardHeader } from '@/components/ui/card'
 import { Day } from '@/components/figures'
 import { DirChip } from '@/components/status'
-import { LoopBar } from '@/components/layout/loop-bar'
-import { EmptyState, EmbeddedCtx, HowTo } from '@/components/page'
+import { EmptyState, EmbeddedCtx, HowTo, TabTitle } from '@/components/page'
 import { EvidenceBadge, type Evidence } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 import Brief, { PilotCard } from './brief'
@@ -72,7 +71,7 @@ function ProductStrip({ picked, onPick }: { picked: boolean; onPick: () => void 
                   <p className={sub}>직전 3일 대비</p>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <DirChip dir={dir} className={cn('px-4 py-1 text-base', VERDICT_CHIP[dir])} />
+                  <DirChip dir={dir} className={cn('px-3 py-0.5 text-[13px]', VERDICT_CHIP[dir])} />
                   {sales.out >= OUT_ALERT && <span title="최근 6일 동안 선출시 매장 중 품절 의심이 있었던 매장 수. 품절이 있으면 판매 증가율이 왜곡될 수 있습니다" className={cn('whitespace-nowrap text-xs font-semibold', on ? 'text-rose-300' : 'text-bad')}>품절 의심 매장 {sales.out}곳</span>}
                 </div>
               </button>
@@ -258,6 +257,29 @@ function Judge() {
   )
 }
 
+/** 문장이 한 줄에 들어가도록 칸 폭에 맞춰 글자를 max에서 min까지 줄인다. min으로도 넘치면 그때만 줄바꿈한다 */
+function FitLine({ max, min, className, children }: { max: number; min: number; className?: string; children: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [fit, setFit] = useState({ size: max, wrap: false })
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el?.parentElement) return
+    const measure = () => {
+      const prev = { fs: el.style.fontSize, ws: el.style.whiteSpace }
+      el.style.fontSize = `${max}px`; el.style.whiteSpace = 'nowrap'
+      const room = el.clientWidth, need = el.scrollWidth
+      el.style.fontSize = prev.fs; el.style.whiteSpace = prev.ws
+      const size = need > room ? Math.floor(((max * room) / need) * 2) / 2 : max
+      setFit(size >= min ? { size, wrap: false } : { size: min, wrap: true })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el.parentElement)
+    return () => ro.disconnect()
+  }, [max, min, children])
+  return <span ref={ref} className={cn('block', className)} style={{ fontSize: fit.size, whiteSpace: fit.wrap ? 'normal' : 'nowrap' }}>{children}</span>
+}
+
 type V = ReturnType<typeof verdict>
 type Gap = { n: number; k: number; scope: string; conv: number; dwell: number }
 const abs = (x: number) => `${Math.abs(Math.round(x * 100))}%`
@@ -265,16 +287,16 @@ const abs = (x: number) => `${Math.abs(Math.round(x * 100))}%`
 /* 요약 문장은 한 줄에 공백 빼고 50자 안쪽으로, 길면 쉼표로 끊고 앞 문장과 겹치는 말은 다시 쓰지 않는다 */
 function headlineOf(v: V, g: Gap, D: number) {
   const a = pct(v.a)
-  if (v.dir === 'fix') return `방문 손님이 평소보다 평균 ${a} 더 모이지만, ${g.scope} 매장 ${g.n}곳 중 ${g.k}곳은 구매 전환이 다른 매장보다 ${abs(g.conv)} 낮아요`
-  if (v.dir === 'expand') return v.slope >= 0 ? `방문 손님이 평소보다 평균 ${a} 더 모이고, 증가 폭은 최근 3일간 ${pp(v.slope)} 커졌어요` : `방문 손님이 평소보다 평균 ${a} 더 모이고, 최고치의 ${Math.round((v.a / v.peak) * 100)}%를 유지해요`
+  if (v.dir === 'fix') return `손님이 평소보다 평균 ${a} 더 모이지만, ${g.scope} 매장 ${g.k}곳은 구매 전환이 다른 곳보다 ${abs(g.conv)} 낮아요`
+  if (v.dir === 'expand') return v.slope >= 0 ? `손님이 평소보다 평균 ${a} 더 모이고, 증가 폭은 최근 3일간 ${pp(v.slope)} 커졌어요` : `손님이 평소보다 평균 ${a} 더 모이고, 최고치의 ${Math.round((v.a / v.peak) * 100)}%를 유지해요`
   if (v.dir === 'wrap') return `방문 증가율이 최고 ${pct(v.peak)}에서 ${a}까지 식었어요`
   if (v.dir === 'wait') return `출시 ${D + 1}일째라, 아직 판단할 근거가 부족해요`
-  return `방문 손님이 평소보다 평균 ${a} 더 모이고, 최근 3일 변화는 ${pp(v.slope)}예요`
+  return `손님이 평소보다 평균 ${a} 더 모이고, 최근 3일 변화는 ${pp(v.slope)}예요`
 }
 
 function adviceOf(v: V, pilotGap: Gap | null) {
   if (v.dir === 'fix') return `정식 출시 전 보완이 필요해요. 놓친 판매가 하루 약 ${num(v.lostUnits)}개로 기대 판매의 ${Math.round(v.lostShare * 100)}%예요`
-  if (v.dir === 'expand') return `정식 출시 확대가 필요해요${pilotGap ? `. 다만 선출시 매장 ${pilotGap.n}곳 중 ${pilotGap.k}곳은 구매 전환이 ${abs(pilotGap.conv)} 낮아요` : ''}`
+  if (v.dir === 'expand') return `정식 출시 확대가 필요해요${pilotGap ? `. 다만 선출시 매장 ${pilotGap.k}곳은 구매 전환이 다른 곳보다 ${abs(pilotGap.conv)} 낮아요` : ''}`
   if (v.dir === 'wrap') return '정식 출시 전 정리가 필요해요'
   if (v.dir === 'wait') return '아직 방향을 정하지 않아요'
   return '지금 상태로 더 지켜봐야 해요'
@@ -317,11 +339,11 @@ function Detail() {
       <section aria-label="인사이트 요약" className="mb-5 overflow-hidden rounded-3xl border border-border bg-card">
         <div className="px-6 py-5 lg:px-8 lg:py-6">
           <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-bold">요약</span>
-          <p className="mt-3 break-keep text-xl font-extrabold leading-tight tracking-tight sm:text-[28px] sm:leading-[1.25]">{headlineOf(v, info.g, D)}</p>
+          <h2 className="mt-3 break-keep font-extrabold leading-[1.25] tracking-tight"><FitLine max={28} min={18}>{headlineOf(v, info.g, D)}</FitLine></h2>
           <ul className="mt-4 list-disc space-y-0.5 pl-5 text-base text-foreground marker:text-muted-foreground">
-            <li>{adviceOf(v, info.pilotGap)}</li>
-            <li>{causeLine(cause, scn.launch, info.g, info.shapes, info.events)}</li>
-            <li>{v.days}일동안의 데이터에요</li>
+            <li><FitLine max={16} min={13}>{adviceOf(v, info.pilotGap)}</FitLine></li>
+            <li><FitLine max={16} min={13}>{causeLine(cause, scn.launch, info.g, info.shapes, info.events)}</FitLine></li>
+            <li><FitLine max={16} min={13}>{`${v.days}일동안의 데이터에요`}</FitLine></li>
           </ul>
         </div>
         <TodayPanel />
@@ -348,7 +370,7 @@ export default function ReactPage() {
   const selected = picked && !!q.launch && scn.id === q.launch && scn.launch !== '캠페인'
   return (
     <div>
-      <LoopBar active={[3, 4, 5]} className="mb-5" />
+      <TabTitle title="매장 반응" desc="선출시 매장 반응을 보고 판정해요" />
       <ProductStrip picked={picked} onPick={() => setPicked(true)} />
       {selected && <Detail />}
     </div>

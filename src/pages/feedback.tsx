@@ -201,7 +201,7 @@ export default function Feedback() {
   return (
     <div>
       <PageHeader title="환류" loop={[6]}
-        sub="결정과 판정의 기록을 남기고, 레이더의 예측이 현실과 맞았는지 보고, 그 결과를 레이더 학습에 쓸지 정합니다."
+        sub="예측과 실제를 비교해 다음에 반영해요"
         basis={{ level: '약함', why: '검색 기준 비교는 실데이터입니다. 매장 쪽 비교는 합성 데이터라 절차를 시연하는 용도이고, 학습 반영은 사람이 승인한 뒤에만 합니다.' }} />
       <SearchCheck />
       <Cases />
