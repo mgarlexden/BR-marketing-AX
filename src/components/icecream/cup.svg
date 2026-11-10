@@ -1,0 +1,7 @@
+<svg width="416" height="401" viewBox="0 0 416 401" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="416" height="401" fill="#F5F5F5"/>
+<g id="Cup">
+<path id="cup-color" d="M124 266Q206 259 288 266L276 322Q206 334 138 322Z" fill="#7E2D6B"/>
+<path id="Rim" d="M119 262Q206 254 293 262" stroke="#F7E6CF" stroke-width="8"/>
+</g>
+</svg>

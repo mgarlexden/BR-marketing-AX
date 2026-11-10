@@ -10,8 +10,8 @@ export function Segmented<T extends string | number>({ value, options, onChange,
         const on = o.value === value
         return (
           <button key={String(o.value)} type="button" aria-pressed={on} onClick={() => onChange(o.value)}
-            className={cn('h-8 rounded-full px-3.5 text-xs font-semibold transition-colors active:translate-y-px',
-              on ? (onDark ? 'bg-white text-zinc-900' : 'bg-card text-foreground shadow-sm') : (onDark ? 'text-white/60 hover:text-white' : 'text-muted-foreground hover:text-foreground'))}>
+            className={cn('h-8 rounded-full border border-transparent px-3.5 text-xs font-semibold transition-colors active:translate-y-px',
+              on ? (onDark ? 'bg-white text-zinc-900' : 'picked') : (onDark ? 'text-white/60 hover:text-white' : 'text-muted-foreground hover:text-foreground'))}>
             {o.label}
           </button>
         )

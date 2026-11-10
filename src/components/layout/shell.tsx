@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 const NAV: { id: RouteId; label: string; sub: string; icon: typeof ScanEye }[] = [
   { id: 'decide', label: '트렌드', sub: '1', icon: TrendingUp },
   { id: 'react', label: '매장 반응', sub: '2', icon: MapPinned },
-  { id: 'feedback', label: '환류', sub: '3', icon: Repeat2 },
+  { id: 'feedback', label: '피드백', sub: '3', icon: Repeat2 },
   { id: 'radar', label: '트렌드 레이더', sub: '', icon: Activity },
 ]
 
@@ -18,10 +18,10 @@ function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggl
     const on = route === id
     return (
       <a key={id} href={href(id)} aria-current={on ? 'page' : undefined} onClick={onClose} title={collapsed ? label : undefined}
-        className={cn('relative flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          on ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60')}>
+        className={cn('relative flex h-12 items-center gap-3 rounded-xl border border-transparent px-3 text-[15px] font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          on ? 'picked font-semibold' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60')}>
         {sub ? (
-          <span className={cn('num grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold', on ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{sub}</span>
+          <span className={cn('num grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold', on ? 'bg-pick text-white' : 'bg-muted text-muted-foreground')}>{sub}</span>
         ) : <Icon className="size-5 shrink-0" />}
         <span className={cn('flex-1', collapsed && 'lg:hidden')}>{label}</span>
         {!!badge && (
@@ -90,7 +90,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [])
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1760px]">
-      <Sidebar open={open} onClose={() => setOpen(false)} pendingCount={Number(pend.dir) + Number(pend.fix)} radarPending={Number(pend.radar)} collapsed={collapsed} onToggle={toggle} />
+      <Sidebar open={open} onClose={() => setOpen(false)} pendingCount={Number(pend.dir)} radarPending={Number(pend.radar)} collapsed={collapsed} onToggle={toggle} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenu={() => setOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1360px] flex-1 px-4 pt-5 pb-12 lg:px-6">{children}</main>

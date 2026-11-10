@@ -1,4 +1,4 @@
-/* 출시 결정으로 생기는 선출시 맛, 결정 시점의 기대효과, 환류의 베타 갱신 */
+/* 출시 결정으로 생기는 선출시 맛, 결정 시점의 기대효과, 피드백의 베타 갱신 */
 import { build, hash, mean, rng, SCENARIOS, SCN_AMP, TYPE_SPEC, unit, type Data, type Kind, type Scenario, type ShapeName, type StoreType } from './data'
 import { launchesOf, type Approvals } from './derived'
 
@@ -67,7 +67,7 @@ export function recommendedStores(): string[] {
   return dataFor(SCENARIOS.a).stores.filter((s) => s.pilot).map((s) => s.id)
 }
 
-/* ---------- 환류: 맞음/틀림을 베타 분포로 ---------- */
+/* ---------- 피드백: 맞음/틀림을 베타 분포로 ---------- */
 export function betaStats(k: number, m: number) {
   const a = 1 + k, b = 1 + m
   const N = 2000, xs: number[] = [], pdf: number[] = []

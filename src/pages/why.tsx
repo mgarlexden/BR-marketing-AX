@@ -47,8 +47,8 @@ function Funnel({ rows }: { rows: FunnelRow[] }) {
 }
 
 function Distribution() {
-  const { data: d, day: D, setQ, href } = useApp()
-  const dg = useMemo(() => diagnose(d, D), [d, D])
+  const { data: d, day: D, setQ, href, route } = useApp()
+  const dg =useMemo(() => diagnose(d, D), [d, D])
   const flags = dg.rows.filter((r) => r.zone === 'flag')
   const pts = dg.rows.map((r) => ({ x: r.x * 100, y: r.y * 100, name: shortName(r.st), flag: r.zone === 'flag' }))
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y)
@@ -74,7 +74,7 @@ function Distribution() {
             <Scatter data={pts.filter((p) => p.flag)} fill="var(--color-flag)" isAnimationActive={false} />
           </ScatterChart>
         </ChartContainer>
-        {flags.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{flags.map((r) => <a key={r.st.id} href={href('react', { v: 'floor', store: r.st.id, tab: 'floor' })} onClick={() => setQ({ tab: 'floor', store: r.st.id })} className="rounded-full border border-border px-2.5 py-1 text-xs font-medium hover:bg-accent">{shortName(r.st)} 동선</a>)}</div>}
+        {flags.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{flags.map((r) => <a key={r.st.id} href={href(route, { store: r.st.id, tab: 'floor' })} onClick={() => setQ({ tab: 'floor', store: r.st.id })} className="rounded-full border border-border px-2.5 py-1 text-xs font-medium hover:bg-accent">{shortName(r.st)} 동선</a>)}</div>}
       </Card>
       <Card>
         <CardHeader title="놓친 판매 (추정, 하루)" />

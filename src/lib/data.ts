@@ -311,17 +311,6 @@ export function orders(data: Data, D: number, params?: Partial<OrderParams>): { 
   return { rows, params: p }
 }
 
-export interface TypeStat { type: StoreType; n: number; peakDay: number; peak: number; now: number; reached: boolean; retain: number | null; series: number[] }
-export function typeStats(data: Data, D: number): TypeStat[] {
-  return TYPES.map((t) => {
-    const a = data.byType[t].slice(0, D + 1)
-    let pk = 0
-    a.forEach((v, i) => { if (v > a[pk]) pk = i })
-    const reached = (D >= pk + 2 && a[D] < a[pk] * 0.9) || D >= 12
-    return { type: t, n: data.stores.filter((s) => s.type === t).length, peakDay: pk, peak: a[pk], now: a[D], reached, retain: D >= 14 ? a[14] / a[pk] : null, series: a }
-  })
-}
-
 export function rankSeries(data: Data): number[][] {
   const ranks: number[][] = data.stores.map(() => [])
   for (let d = 0; d <= DAYS; d++) {
@@ -355,33 +344,89 @@ export function movers(data: Data, D: number, threshold: number, gap: number): M
   })
 }
 
-export interface Milestones { signal: number | null; gap: number | null; order: number | null; radar: number | null; alert: number | null }
-export function milestones(data: Data): Milestones {
-  const m: Milestones = { signal: null, gap: null, order: null, radar: null, alert: null }
-  for (let D = 0; D <= DAYS; D++) {
-    if (m.signal == null && D >= 1 && data.agg[D] >= 0.15 && data.agg[D - 1] >= 0.15) m.signal = D
-    if (m.gap == null && D >= 2 && diagnose(data, D).rows.filter((r) => r.zone === 'flag').length >= 3) m.gap = D
-    if (m.order == null && D >= 2 && orders(data, D).rows.some((r) => r.action === 'order')) m.order = D
-    if (m.radar == null && D >= 4) { const c = classify(data, D); if (c.kind && c.conf !== '보류') m.radar = D }
-    if (m.alert == null && D >= 2 && movers(data, D, 5, 3).some((r) => r.alert)) m.alert = D
-  }
-  return m
+/* ---------- 전국 확대 기준 (선출시 매장, 최근 3일) ---------- */
+/** 확대 기준 (자체 가정). 8개 지표가 모두 이 선을 기준으로 통과·미달을 가른다 */
+export const EXPAND_RULE = {
+  /** 총 방문: 평소 예상 대비 */ visit: 0.15,
+  /** 미출시 매장 대비 순효과 */ net: 0.1,
+  /** 신제품 구매 수: 방문 100명당 */ sold: 15,
+  /** 판매 비중: 전체 주문 중 신제품 */ share: 0.25,
+  /** 판매 증가율: 직전 3일 대비, 이보다 덜 꺾이면 통과 */ growth: -0.1,
+  /** 품절 의심: 선출시 매장 중 이 비율 미만이어야 판매 수치를 믿는다 */ out: 0.4,
+  /** 재고 소진 속도: 하루 판매 ÷ 첫 입고량 */ deplete: 0.08,
+  /** 매장 간 결과 편차: 선출시 매장 중 이 비율 이상이 매장 기준(방문·구매 수)을 넘어야 한다 */ spread: 0.6,
+  /** 전국 확대에 필요한 통과 지표 수 (8개 중) */ need: 6,
+}
+export type CheckId = 'visit' | 'net' | 'sold' | 'share' | 'growth' | 'out' | 'deplete' | 'spread'
+export interface Check {
+  id: CheckId; label: string; /** 요약 문장에 쓰는 짧은 이름 */ short: string; value: number | null; display: string
+  /** 기준을 사람이 읽는 말로 */ rule: string; pass: boolean; /** 기준에서 얼마나 떨어졌나 (기준 대비 비율, +는 여유) */ margin: number
+}
+export interface StoreCheck { st: Store; visit: number; net: number; sold: number; share: number; growth: number | null; outDays: number; deplete: number; pass: boolean }
+export interface Expansion { checks: Check[]; passed: number; stores: StoreCheck[]; storesPassed: number }
+
+const sumKey = (st: Store, from: number, to: number, key: 'visits' | 'exp' | 'sales' | 'orders' | 'ctrlVis') => {
+  let s = 0
+  for (let i = Math.max(0, from); i <= to; i++) s += st.series[i][key]
+  return s
+}
+const sg = (x: number, unit = '%') => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}${unit}`
+
+export function expansion(data: Data, D: number): Expansion {
+  const R = EXPAND_RULE
+  const pil = data.stores.filter((s) => s.pilot)
+  const a = D - 2, pa = D - 5, pb = D - 3
+  const stores: StoreCheck[] = pil.map((st) => {
+    const vis = sumKey(st, a, D, 'visits'), exp = sumKey(st, a, D, 'exp'), ctrl = sumKey(st, a, D, 'ctrlVis')
+    const sales = sumKey(st, a, D, 'sales'), ord = sumKey(st, a, D, 'orders'), prev = D >= 3 ? sumKey(st, pa, pb, 'sales') : 0
+    const outDays = st.series.slice(Math.max(0, a), D + 1).filter((p) => p.out).length
+    const visit = vis / exp - 1, sold = vis ? (sales / vis) * 100 : 0
+    return { st, visit, net: visit - (ctrl / exp - 1), sold, share: ord ? sales / ord : 0, growth: prev ? sales / prev - 1 : null, outDays, deplete: sales / Math.min(3, D + 1) / Math.max(1, st.stock0), pass: visit >= R.visit && sold >= R.sold }
+  })
+  const tot = (k: 'visits' | 'exp' | 'sales' | 'orders') => pil.reduce((s, st) => s + sumKey(st, a, D, k), 0)
+  const vis = tot('visits'), exp = tot('exp'), sales = tot('sales'), ord = tot('orders')
+  const prev = D >= 3 ? pil.reduce((s, st) => s + sumKey(st, pa, pb, 'sales'), 0) : 0
+  const visit = vis / exp - 1
+  const net = mean(data.netAgg.slice(Math.max(0, a), D + 1))
+  const sold = vis ? (sales / vis) * 100 : 0
+  const share = ord ? sales / ord : 0
+  const growth = prev ? sales / prev - 1 : null
+  const outN = stores.filter((s) => s.outDays > 0).length
+  const deplete = mean(stores.map((s) => s.deplete))
+  const storesPassed = stores.filter((s) => s.pass).length
+  const n = pil.length || 1
+  const up = (v: number, th: number) => (v - th) / Math.max(0.01, Math.abs(th))
+  const checks: Check[] = [
+    { id: 'visit', label: '총 방문', short: '총 방문', value: visit, display: sg(visit), rule: `평소 대비 +${R.visit * 100}% 이상`, pass: visit >= R.visit, margin: up(visit, R.visit) },
+    { id: 'net', label: '미출시 매장 대비 순효과', short: '순효과', value: net, display: sg(net, '%p'), rule: `+${R.net * 100}%p 이상`, pass: net >= R.net, margin: up(net, R.net) },
+    { id: 'sold', label: '신제품 구매 수', short: '구매 수', value: sold, display: `100명당 ${Math.round(sold)}개`, rule: `100명당 ${R.sold}개 이상`, pass: sold >= R.sold, margin: up(sold, R.sold) },
+    { id: 'share', label: '판매 비중', short: '판매 비중', value: share, display: `${Math.round(share * 100)}%`, rule: `전체 주문의 ${R.share * 100}% 이상`, pass: share >= R.share, margin: up(share, R.share) },
+    { id: 'growth', label: '판매 증가율', short: '판매 증가율', value: growth, display: growth === null ? '-' : sg(growth), rule: `직전 3일 대비 ${sg(R.growth)} 이상`, pass: growth !== null && growth >= R.growth, margin: growth === null ? -1 : (growth - R.growth) / 0.1 },
+    { id: 'out', label: '품절 의심', short: '품절 의심', value: outN, display: `${outN}곳`, rule: `${n}곳 중 ${Math.ceil(n * R.out) - 1}곳 이하`, pass: outN < n * R.out, margin: (n * R.out - outN) / Math.max(1, n * R.out) },
+    { id: 'deplete', label: '재고 소진 속도', short: '재고 소진', value: deplete, display: `하루 ${Math.round(deplete * 100)}%`, rule: `하루 첫 입고량의 ${R.deplete * 100}% 이상`, pass: deplete >= R.deplete, margin: up(deplete, R.deplete) },
+    { id: 'spread', label: '매장 간 결과 편차', short: '매장 편차', value: storesPassed, display: `${n}곳 중 ${storesPassed}곳 통과`, rule: `${Math.ceil(n * R.spread)}곳 이상 통과`, pass: storesPassed >= Math.ceil(n * R.spread), margin: (storesPassed - n * R.spread) / Math.max(1, n * R.spread) },
+  ]
+  return { checks, passed: checks.filter((c) => c.pass).length, stores, storesPassed }
 }
 
-/* ---------- 방향 판단 (확대, 유지, 보완, 정리) ---------- */
+/* ---------- 재고 방향 (전국 확대, 부분 확대, 유지, 축소) ---------- */
 export type Dir = 'wait' | 'expand' | 'maintain' | 'fix' | 'wrap'
-export const DIR_LABEL: Record<Dir, string> = { wait: '관찰 중', expand: '확대 필요', maintain: '유지', fix: '보완 필요', wrap: '정리' }
-export const DIR_OPTIONS: Exclude<Dir, 'wait'>[] = ['expand', 'maintain', 'fix', 'wrap']
-/** 출시 유형마다 같은 선택지가 뜻하는 행동이 다르다 */
+/** fix는 '기준을 넘은 상권에만 재고를 늘리는' 부분 확대다 (이전 이름은 보완) */
+export const DIR_LABEL: Record<Dir, string> = { wait: '관찰 중', expand: '전국 확대', maintain: '유지', fix: '부분 확대', wrap: '축소' }
+export const DIR_OPTIONS: Exclude<Dir, 'wait'>[] = ['expand', 'fix', 'maintain', 'wrap']
+/** 선택지마다 재고를 어떻게 움직이는지 */
 export const DIR_MEANING: Record<LaunchKind, Record<Exclude<Dir, 'wait'>, string>> = {
-  '새로운 맛': { expand: '이달의 맛 연장, 노출 확대', maintain: '현 상태로 며칠 더 관찰', fix: '가격표, 시식, 진열 보완', wrap: '판매 종료 시점 검토, 후속 맛 준비' },
-  '콜라보': { expand: '콜라보 기간 연장, 굿즈와 노출 확대', maintain: '현 상태로 며칠 더 관찰', fix: '굿즈와 POP 안내 보완', wrap: '종료 시점 검토, 후속 콜라보 후보' },
-  '캠페인': { expand: '캠페인 연장, 채널 확대', maintain: '현 상태로 며칠 더 관찰', fix: '쿠폰과 메시지 보완', wrap: '종료 검토, 후속 캠페인 준비' },
+  '새로운 맛': { expand: '전체 매장에 재고를 배정해 정식 판매', fix: '기준을 넘은 상권 매장에만 재고 추가', maintain: '선출시 매장 재고만 유지하고 며칠 더 관찰', wrap: '선출시 재고를 줄이고 판매 종료 준비' },
+  '콜라보': { expand: '전체 매장에 메뉴와 굿즈 재고 배정', fix: '기준을 넘은 상권 매장에만 굿즈·재고 추가', maintain: '선출시 매장 재고만 유지하고 며칠 더 관찰', wrap: '선출시 재고를 줄이고 콜라보 종료 준비' },
+  '캠페인': { expand: '전체 매장으로 캠페인 확대', fix: '기준을 넘은 상권 매장에만 확대', maintain: '선출시 매장에서만 유지', wrap: '캠페인 축소, 종료 준비' },
 }
 export interface Verdict {
   dir: Dir; conf: '낮음' | '중간' | '높음'; days: number; headline: string
   a: number; peak: number; slope: number; flagged: number; lostShare: number; lostUnits: number
+  ex: Expansion
 }
+/** 전국 확대: 순효과와 매장 편차를 포함해 6개 이상 통과. 부분 확대: 순효과는 넘었지만 기준을 넘은 매장이 일부뿐.
+ *  축소: 출시 6일 뒤에도 순효과와 판매 증가율이 모두 미달이거나, 통과 지표가 2개 이하. 그 외 유지 */
 export function verdict(data: Data, D: number): Verdict {
   const a = data.agg[D]
   const peak = Math.max(...data.agg.slice(0, D + 1))
@@ -392,80 +437,24 @@ export function verdict(data: Data, D: number): Verdict {
   const lostUnits = fl.reduce((s, r) => s + Math.max(0, r.visits3 * (diag.medConv - r.conv)), 0)
   const lostShare = lostUnits / expected
   const conf: Verdict['conf'] = D >= 14 ? '높음' : D >= 7 ? '중간' : '낮음'
+  const ex = expansion(data, D)
+  const ok = (id: CheckId) => ex.checks.find((c) => c.id === id)!.pass
   let dir: Dir
   if (D < 3) dir = 'wait'
-  else if (D >= 6 && a < 0.12 && slope < 0.03) dir = 'wrap'
-  else if (a >= 0.25 && slope >= 0.03) dir = 'expand' // 뚜렷이 오르는 중이면 보완보다 확대가 먼저
-  else if (fl.length >= 3 && lostShare >= 0.08) dir = 'fix'
-  else if (a >= 0.25 && a >= 0.8 * peak) dir = 'expand'
-  else if (D >= 6 && a < 0.25 && slope < -0.05) dir = 'wrap'
+  else if (ok('net') && ok('spread') && ex.passed >= EXPAND_RULE.need) dir = 'expand'
+  else if (ok('net') && !ok('spread') && ex.storesPassed >= 1) dir = 'fix'
+  else if ((D >= 6 && !ok('net') && !ok('growth')) || ex.passed <= 2) dir = 'wrap'
   else dir = 'maintain'
-  const headline =
-    dir === 'wait' ? '출시 직후라 판단할 근거가 부족합니다' :
-    dir === 'fix' ? `평소보다 ${pct0(a)} 더 모이지만 ${fl.length}개 매장은 구매로 이어지지 않습니다` :
-    dir === 'expand' ? `평소보다 ${pct0(a)} 더 모이고 ${slope >= 0 ? '오르는 중입니다' : '높은 수준을 지킵니다'}` :
-    dir === 'wrap' ? `반응이 평소 수준 ${pct0(a)}까지 식었습니다` :
-    `평소보다 ${pct0(a)} 더 모입니다. 방향을 바꿀 신호는 아직 없습니다`
-  return { dir, conf, days: D + 1, headline, a, peak, slope, flagged: fl.length, lostShare, lostUnits }
+  const headline = dir === 'wait' ? '출시 직후라 판단할 근거가 부족합니다' : `확대 기준 8개 중 ${ex.passed}개 통과`
+  return { dir, conf, days: D + 1, headline, a, peak, slope, flagged: fl.length, lostShare, lostUnits, ex }
 }
 const pct0 = (v: number) => (v >= 0 ? '+' : '−') + Math.abs(Math.round(v * 100)) + '%'
 
-export function verdictSeries(data: Data): Dir[] {
-  const out: Dir[] = []
-  for (let d = 0; d <= DAYS; d++) out.push(verdict(data, d).dir)
-  return out
-}
-
-/** 판정의 이유 한 줄 */
-export function verdictReason(data: Data, D: number): string {
-  const v = verdict(data, D)
-  const sg = (x: number) => (x >= 0 ? '+' : '−') + Math.abs(Math.round(x * 100))
-  switch (v.dir) {
-    case 'wait': return '출시 직후라 근거가 부족'
-    case 'expand': return `반응 ${sg(v.a)}%, 최근 3일 ${sg(v.slope)}%p`
-    case 'fix': return `구매 점검 ${v.flagged}곳, 놓친 판매 ${Math.round(v.lostShare * 100)}%`
-    case 'wrap': return `반응 ${sg(v.a)}%로 식음`
-    default: return `반응 ${sg(v.a)}%, 방향을 바꿀 신호 없음`
-  }
-}
-export interface VerdictPhase { dir: Dir; from: number; to: number; reason: string }
-/** 같은 판정이 이어진 구간으로 묶고, 구간의 이유는 마지막 날 기준 */
-export function verdictPhases(data: Data, D: number): VerdictPhase[] {
-  const out: VerdictPhase[] = []
-  for (let d = 0; d <= D; d++) {
-    const dir = verdict(data, d).dir
-    const last = out[out.length - 1]
-    if (last && last.dir === dir) { last.to = d; last.reason = verdictReason(data, d) }
-    else out.push({ dir, from: d, to: d, reason: verdictReason(data, d) })
-  }
-  return out
-}
-
 export const DIR_RULE: Record<Dir, string> = {
   wait: '출시 후 3일부터 판단합니다',
-  expand: '반응 25% 이상이고 오르는 중이면 확대 필요',
-  maintain: '방향을 바꿀 신호가 없으면 유지',
-  fix: '구매 점검 3곳 이상, 놓친 판매 8% 이상이면 보완 필요',
-  wrap: '반응 12% 미만이거나 25% 아래로 계속 내려가면 정리',
+  expand: '순효과와 매장 편차를 포함해 확대 기준 6개 이상 통과하면 전국 확대',
+  fix: '순효과는 넘었지만 기준을 넘은 매장이 일부뿐이면 그 상권만 부분 확대',
+  maintain: '전국 확대도 축소도 아니면 유지',
+  wrap: '순효과와 판매 증가율이 모두 미달이거나 통과 지표가 2개 이하면 축소',
 }
 
-/* ---------- 매장 반응 4단계 (유입, 관심, 전환, 맛 단위) ---------- */
-export interface Stage { now: number; before: number }
-export interface Stages { inflow: Stage; interest: Stage; conv: Stage; share: Stage }
-/** 전체 20곳 기준. 최근 3일 값과 그 직전 3일 값 */
-export function stageStats(data: Data, D: number): Stages {
-  const at = (d: number) => {
-    const interest = mean(data.stores.map((st) => mean(lastN(st, d, 3, 'dwell')) / st.dwellBase - 1))
-    let sales = 0, vis = 0, ord = 0, sold = 0
-    data.stores.forEach((st) => {
-      for (let i = Math.max(0, d - 2); i <= d; i++) {
-        const p = st.series[i]
-        ord += p.orders; sold += p.sales
-        if (!p.out) { sales += p.sales; vis += p.visits }
-      }
-    })
-    return { inflow: mean(data.agg.slice(Math.max(0, d - 2), d + 1)), interest, conv: vis ? (sales / vis) * 100 : 0, share: ord ? sold / ord : 0 }
-  }
-  const a = at(D), b = at(Math.max(0, D - 3))
-  return { inflow: { now: a.inflow, before: b.inflow }, interest: { now: a.interest, before: b.interest }, conv: { now: a.conv, before: b.conv }, share: { now: a.share, before: b.share } }
-}

@@ -1,0 +1,16 @@
+/* IceCream 컴포넌트: 같은 크기(416×401) SVG 세 장을 겹치고, 정해진 id의 도형만 CSS 변수 색으로 칠한다.
+ * CSS는 SVG의 fill·stroke 속성보다 우선해서, Figma에서 내보낸 파일을 그대로 넣어도 된다 */
+.icecream > .ic-layer { position: absolute; inset: 0; transition: opacity 0.3s ease; }
+.icecream > .ic-layer > svg { display: block; width: 100%; height: 100%; }
+
+.icecream [id='base-color-1'],
+.icecream [id='base-color-2'] { fill: var(--ic-base); transition: fill 0.3s ease; }
+
+.icecream[data-cup] [id='cup-color'] { fill: var(--ic-cup); transition: fill 0.3s ease; }
+
+/* 토핑 색을 바꿀 도형은 id가 Chocolate chunks(Figma에서 Chocolate_chunks로 나올 수 있음) 또는 topping-color인 그룹 안에 둔다 */
+.icecream[data-topping-color] :is([id='Chocolate chunks'], [id='Chocolate_chunks'], [id='topping-color']) :is(path, rect, circle, ellipse, polygon) {
+  fill: var(--ic-topping);
+  stroke: var(--ic-topping);
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
