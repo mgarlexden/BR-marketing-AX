@@ -3,14 +3,14 @@ import type { Data, Scenario } from './data'
 import type { Approvals } from './derived'
 import { dataFor, scenarioList } from './launch'
 
-export type RouteId = 'decide' | 'react' | 'feedback' | 'privacy'
+export type RouteId = 'decide' | 'react' | 'feedback' | 'radar' | 'privacy'
 export const ROUTE_TITLES: Record<RouteId, string> = {
-  decide: '트렌드', react: '매장 반응', feedback: '모델', privacy: '개인정보 보호',
+  decide: '트렌드', react: '매장 반응', feedback: '환류', radar: '트렌드 레이더', privacy: '개인정보 보호',
 }
 /** 이전 화면 주소로 들어와도 새 구조로 보낸다 */
 const LEGACY: Record<string, { route: RouteId; q: Record<string, string> }> = {
   brief: { route: 'react', q: { v: 'summary' } }, where: { route: 'react', q: { v: 'stores' } }, why: { route: 'react', q: { v: 'floor' } },
-  decisions: { route: 'react', q: { v: 'judge' } }, trend: { route: 'decide', q: {} },
+  decisions: { route: 'react', q: { v: 'judge' } }, trend: { route: 'radar', q: {} },
 }
 const GLOBAL = ['launch']
 

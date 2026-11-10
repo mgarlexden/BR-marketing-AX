@@ -22,7 +22,7 @@ const DIR_COLOR: Record<Dir, string> = { expand: 'var(--dir-expand)', maintain: 
 const pilotCfg = { pilot: { label: '선출시 매장', color: 'var(--primary)' }, ctrl: { label: '대조 매장', color: 'var(--muted-foreground)' } } satisfies ChartConfig
 
 /** 선출시 매장과 같은 기간 미출시로 가정한 대조 매장을 나란히 놓고 차이(순효과)를 본다 */
-export function PilotCard() {
+function PilotCard() {
   const { data: d, day: D } = useApp()
   const nP = d.stores.filter((s) => s.pilot).length
   const rows = Array.from({ length: DAYS + 1 }, (_, i) => ({ day: i, pilot: i <= D ? d.pilotAgg[i] : null, ctrl: i <= D ? d.ctrlAgg[i] : null }))
@@ -32,7 +32,7 @@ export function PilotCard() {
   const hi = Math.max(0.4, ...all), lo = Math.min(0, ...all), step = hi - lo > 1.2 ? 0.5 : 0.2
   const pp2 = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%p`
   return (
-    <Card id="pilot-effect" className="mb-4 scroll-mt-20">
+    <Card className="mb-4">
       <CardHeader title={`선출시 효과: 선출시 ${nP}곳 vs 대조 ${d.stores.length - nP}곳`} right={<span className="flex items-center gap-1.5 text-xs text-muted-foreground">대조는 같은 기간 미출시로 가정<EvidenceBadge kind="sim" /></span>} />
       <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
         <ChartContainer config={pilotCfg} className="aspect-auto h-52 w-full">
@@ -59,8 +59,7 @@ export function PilotCard() {
   )
 }
 
-/** hideNet: 대조 대비 순효과를 따로 보여 주는 화면에서는 여기서 빼서 겹치지 않게 한다 */
-export default function Brief({ hideNet = false }: { hideNet?: boolean }) {
+export default function Brief() {
   const { data: d, day: D, href } = useApp()
   const v = useMemo(() => verdict(d, D), [d, D])
   const phases = useMemo(() => verdictPhases(d, D), [d, D])
@@ -84,6 +83,10 @@ export default function Brief({ hideNet = false }: { hideNet?: boolean }) {
 
   const chart = (
     <div>
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-muted/70 px-4 py-3">
+        <DirChip dir={v.dir} className="text-sm" />
+        <p className="min-w-0 flex-1 text-sm font-medium">{v.headline}</p>
+      </div>
       <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-muted-foreground">전체 반응 (평소 대비)</p>
@@ -113,10 +116,10 @@ export default function Brief({ hideNet = false }: { hideNet?: boolean }) {
       <PageHeader title="출시 현황" right={<span className="text-sm text-muted-foreground">반응 = 방문이 평소보다 늘어난 정도 · 기준일 <b className="text-foreground">{dateLabel(d, D)}</b></span>} />
       <AdvancedStats
         chart={chart}
-        goal={{ label: '현재 판정', title: DIR_LABEL[v.dir], value: `${v.days}일 데이터`, target: '', percent: (v.days / 15) * 100, note: DIR_RULE[v.dir] }}
+        goal={{ label: '현재 판정', title: DIR_LABEL[v.dir], value: `신뢰도 ${v.conf}`, target: `근거 ${v.days}일`, percent: (v.days / 15) * 100, note: DIR_RULE[v.dir] }}
         kpis={kpis}
       >
-        {!hideNet && <PilotCard />}
+        <PilotCard />
         <div className="grid gap-4 lg:grid-cols-5">
           <Card className="lg:col-span-3">
             <CardHeader title="변화 알림" />

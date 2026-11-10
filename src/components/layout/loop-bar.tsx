@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 const GROUPS: { name: string; to: RouteId; steps: string[]; nums: number[] }[] = [
   { name: '트렌드', to: 'decide', steps: ['감지·예측', '출시 결정'], nums: [1, 2] },
   { name: '매장 반응', to: 'react', steps: ['선출시', '매장 반응', '판정'], nums: [3, 4, 5] },
-  { name: '모델', to: 'feedback', steps: ['환류'], nums: [6] },
+  { name: '환류', to: 'feedback', steps: ['환류'], nums: [6] },
 ]
 
 /** active: 지금 화면이 맡은 세부 단계 번호(1~6). 해당하는 큰 단계가 강조된다 */

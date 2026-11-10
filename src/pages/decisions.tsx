@@ -27,7 +27,7 @@ export function DirCard() {
     { k: '전체 반응', v: `${pct(v.a)} (정점 ${pct(v.peak)}, ${dLabel(Math.max(0, peakDay))})`, to: href('react', { v: 'stores' }) },
     { k: '최근 3일', v: <Delta v={v.slope} />, to: href('react', { v: 'stores', view: 'curve' }) },
     { k: '구매 점검 매장', v: `${v.flagged}곳, 놓친 판매 ${num(v.lostUnits)}개/일`, to: href('react', { v: 'floor', tab: 'dist' }) },
-    { k: '근거', v: `${v.days}일`, to: undefined },
+    { k: '근거', v: `${v.days}일, 신뢰도 ${v.conf}`, to: undefined },
   ]
   const meaning = DIR_MEANING[d.scn.launch]
   return (
@@ -55,7 +55,7 @@ export function DirCard() {
       </dl>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={choice === rec ? '메모 (선택)' : '권고와 다른 이유 (선택)'} aria-label="사유" className="h-10 min-w-56 flex-1 rounded-full border border-input bg-background px-4 text-sm" />
-        <Button onClick={() => setAppr(dirKey(d.scn.id, D), { kind: 'dir', day: D, choice, rec, note: note.trim() })}>{DIR_LABEL[choice]}로 기록</Button>
+        <Button onClick={() => setAppr(dirKey(d.scn.id, D), { kind: 'dir', day: D, choice, rec, note: note.trim() })}>{DIR_LABEL[choice]}(으)로 기록</Button>
       </div>
     </Card>
   )

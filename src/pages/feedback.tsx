@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Undo2 } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
 import { classify, DIR_LABEL, diagnose, shortName, verdict } from '@/lib/data'
@@ -15,7 +15,6 @@ import { Day } from '@/components/figures'
 import { EvidenceBadge } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 import { RadarCard } from './decisions'
-import { ModelPanel } from '@/components/model-panel'
 
 const { meta, items } = RADAR
 const H = meta.horizon
@@ -158,7 +157,7 @@ function Log() {
   const rows = useMemo(() => {
     const r: Row[] = []
     let ord = 0
-    launchesOf(appr).forEach((l) => r.push({ sort: 1000 + ord++, when: <span className="text-xs">결정</span>, flavor: l.concept ?? l.kw, kind: '출시 결정', body: <span className="text-xs">{l.launch === '콜라보' ? '콜라보 · ' : ''}선출시 {l.stores.length}곳, 기대 방문 +{Math.round(l.exp.visitLo * 100)}~{Math.round(l.exp.visitHi * 100)}%{l.launch === '콜라보' ? '' : `, 생존 확률 ${Math.round(l.prob * 100)}% (${shortDate(l.detected)} 감지)`}</span>, undo: () => setAppr(launchKey(l.kw), null) }))
+    launchesOf(appr).forEach((l) => r.push({ sort: 1000 + ord++, when: <span className="text-xs">결정</span>, flavor: l.kw, kind: '출시 결정', body: <span className="text-xs">{l.launch === '콜라보' ? '콜라보 · ' : ''}선출시 {l.stores.length}곳, 기대 방문 +{Math.round(l.exp.visitLo * 100)}~{Math.round(l.exp.visitHi * 100)}%{l.launch === '콜라보' ? '' : `, 생존 확률 ${Math.round(l.prob * 100)}% (${shortDate(l.detected)} 감지)`}</span>, undo: () => setAppr(launchKey(l.kw), null) }))
     skipsOf(appr).forEach((s) => r.push({ sort: 1000 + ord++, when: <span className="text-xs">결정</span>, flavor: s.kw, kind: '출시 안 함', body: <span className="text-xs">생존 확률 {Math.round(s.prob * 100)}%. {H}주 뒤 실제 검색과 비교합니다</span>, undo: () => setAppr(skipKey(s.kw), null) }))
     scenarios.forEach((sc) => {
       const dd = dataFor(sc)
@@ -197,34 +196,22 @@ function Log() {
 }
 
 export default function Feedback() {
-  const { q } = useApp()
-  useEffect(() => { if (q.at === 'log') document.getElementById('decision-log')?.scrollIntoView() }, [q.at])
   return (
     <div>
-      <PageHeader title="모델" loop={[6]}
-        sub="모델 성능을 보고, 예측과 실제를 비교해 다음에 반영해요"
+      <PageHeader title="환류" loop={[6]}
+        sub="결정과 판정의 기록을 남기고, 레이더의 예측이 현실과 맞았는지 보고, 그 결과를 레이더 학습에 쓸지 정합니다."
         basis={{ level: '약함', why: '검색 기준 비교는 실데이터입니다. 매장 쪽 비교는 합성 데이터라 절차를 시연하는 용도이고, 학습 반영은 사람이 승인한 뒤에만 합니다.' }} />
-      <section aria-labelledby="sec-model">
-        <h2 id="sec-model" className="text-xl font-extrabold tracking-tight">모델 성능</h2>
-        <p className="mb-3 mt-0.5 text-xs text-muted-foreground">트렌드 레이더가 13주 뒤 생존을 얼마나 맞히는지</p>
-        <ModelPanel />
-      </section>
-
-      <section aria-labelledby="sec-loop" className="border-t border-border pt-6">
-        <h2 id="sec-loop" className="text-xl font-extrabold tracking-tight">환류</h2>
-        <p className="mb-3 mt-0.5 text-xs text-muted-foreground">예측과 실제를 비교하고, 학습에 반영할지 결정해요</p>
       <SearchCheck />
       <Cases />
       <LearnCard />
       <div className="mb-4"><RadarCard /></div>
-      <h2 id="decision-log" className="mb-2 scroll-mt-20 text-sm font-semibold">결정 로그</h2>
+      <h2 className="mb-2 text-sm font-semibold">결정 로그</h2>
       <Log />
       <HowTo title="환류 규칙">
         <p>두 종류의 정답을 따로 씁니다. 검색 기준은 출시 여부와 관계없이 모든 후보에 {H}주 뒤 정답이 생기고, 매장 기준은 선출시한 맛에만 생깁니다. 출시한 것만 학습하면 내가 고른 것만 배우는 편향이 생기므로 둘을 함께 봅니다.</p>
         <p className="mt-1">매장 사례는 출시 후 14일부터 판단하고 D+28에 확정합니다. 사례가 10건 미만이면 기록만 하고, 10건 이상이면 예상과 실측을 비교해 구간을 갱신하며, 30건 이상이면 재학습을 검토합니다. 품절, 행사 같은 이벤트가 있었던 사례는 학습에서 제외합니다.</p>
         <p className="mt-1">결정 시점의 예측과 기대효과는 그때 고정한 값이며, 이후 모델이 바뀌어도 바꾸지 않습니다. 반응이 며칠 이어질지는 예측하지 않으므로 그 항목의 비교는 없습니다.</p>
       </HowTo>
-      </section>
     </div>
   )
 }
