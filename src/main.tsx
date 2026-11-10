@@ -9,7 +9,6 @@ const PAGES: Record<RouteId, React.LazyExoticComponent<() => React.JSX.Element>>
   decide: lazy(() => import('@/pages/decide')),
   react: lazy(() => import('@/pages/react')),
   feedback: lazy(() => import('@/pages/feedback')),
-  radar: lazy(() => import('@/pages/trend')),
   privacy: lazy(() => import('@/pages/privacy')),
 }
 

@@ -26,6 +26,20 @@ export interface RadarItem {
   base: number
   /** 직전 4주 평균 대비 몇 배 */
   jump: number
+  /** 감지 주 실제 검색 수 (검색광고 API 월간 검색 수로 환산, 주 단위) */
+  weekly: number
+  /** 직전 12주 평균 실제 검색 수 (주 단위) */
+  usual: number
+  /** 이 키워드 검색 중 30세 이상 비중 추정 (연령 데이터 없으면 null) */
+  oldShare: number | null
+  /** 평소 20대가 주로 찾던 디저트에 30세 이상이 갑자기 몰린 급등 */
+  warn: boolean
+  /** 이미 있는 상품 이름(연관 검색어 '상표'). 확률이 높아도 후보 대신 콜라보 검토 */
+  brand: boolean
+  /** Chronos-2가 예측한 13주 뒤(12~14주 평균) 값이 급등으로 늘어난 부분 중 몇 %인지 (Chronos 값 없으면 null) */
+  c2keep: number | null
+  /** Chronos-2 선형 탐침이 곡선 모양만 보고 낸 버팀 확률 (Chronos 값 없으면 null) */
+  c2pattern: number | null
   /** meta.seriesStart 부터의 주간 검색량 (키워드별 최고 주 = 100) */
   series: number[]
 }
@@ -33,10 +47,29 @@ export interface RadarItem {
 export interface RadarCluster { id: number; size: number; main: RadarType; match: number; members: string[]; curve: number[] }
 
 export interface RadarData {
-  meta: { minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number }
-  scores: { samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number; models: { name: string; bal: number; auc: number; used: boolean }[] }
+  meta: { minWeekly: number; /** 1차 규모 기준 (결정 탭에서 읽음, 레이더 판정에는 안 씀) */ minSize: number; first: string; last: string; seriesStart: string; weeks: number; horizon: number; recent: number; z: number; keep: number }
+  scores: {
+    samples: number; keywords: number; survive_rate: number; model_bal: number; model_auc: number; rule_bal: number; cluster_match: number
+    /** 버틴 급등 중 맞힌 비율, 꺼진 급등 중 맞힌 비율 */
+    hit_survive: number; hit_fail: number; repeat: number
+    /** 경고 급등(20대 디저트에 30세 이상 몰림)이 과거에 버틴 비율과 건수 */
+    warn_rate: number; warn_n: number
+    /** Chronos-2 값으로 만든 모델인지 (파일이 없으면 지난 레이더 모델) */
+    chronos: boolean
+    /** 반복형까지 포함한 전체 급등 기준 정확도 (화면 맨 위 숫자) */
+    all_samples: number; all_bal: number; all_auc: number; all_hit_survive: number; all_hit_fail: number
+    models: { name: string; bal: number; auc: number; used: boolean; hit_survive: number; hit_fail: number }[]
+  }
   items: RadarItem[]
   clusters: RadarCluster[]
+  /** 다가오는 시즌: 반복형 중 기준일 + 13주가 속한 달(months[0])과 그다음 달에 정점인 재료 */
+  season: {
+    months: number[]; target: string
+    /** peak: 최근 1년 중 가장 많이 검색된 주의 실제 검색 수, years: 2016~2025년 중 이 달 전후(±1달)에 정점이었던 해 수, total: 그 기간 데이터가 있는 해 수 */
+    items: { kw: string; month: number; brand: boolean; peak: number; years: number; total: number
+      /** 최근 1년 주 평균 실제 검색 수 */ usual: number
+      /** meta.seriesStart 부터의 주간 검색량 (키워드별 최고 주 = 100) */ series: number[] }[]
+  }
 }
 
 /** 팀원 모듈의 Kind 와 맞춘 대응표 */

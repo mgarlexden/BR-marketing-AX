@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Activity, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, Repeat2, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
+import { BrainCircuit, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
 import { useApp, type RouteId } from '@/lib/app-context'
 import { pending } from '@/lib/derived'
 import { EvidenceLegend } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 
 const NAV: { id: RouteId; label: string; sub: string; icon: typeof ScanEye }[] = [
-  { id: 'decide', label: '트렌드', sub: '1', icon: TrendingUp },
-  { id: 'react', label: '매장 반응', sub: '2', icon: MapPinned },
-  { id: 'feedback', label: '환류', sub: '3', icon: Repeat2 },
-  { id: 'radar', label: '트렌드 레이더', sub: '', icon: Activity },
+  { id: 'decide', label: '트렌드', sub: '', icon: TrendingUp },
+  { id: 'react', label: '매장 반응', sub: '', icon: MapPinned },
+  { id: 'feedback', label: '모델', sub: '', icon: BrainCircuit },
 ]
 
 function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggle }: { open: boolean; onClose: () => void; pendingCount: number; radarPending: number; collapsed: boolean; onToggle: () => void }) {
