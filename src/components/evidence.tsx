@@ -10,12 +10,12 @@ export const EVIDENCE: Record<Evidence, { label: string; tone: string; meaning: 
   sim: { label: '가상', tone: 'bg-muted text-muted-foreground', meaning: '이 화면을 위해 합성한 값. 실제 성능이 아님' },
 }
 
-export function EvidenceBadge({ kind, className, note }: { kind: Evidence; className?: string; note?: string }) {
+export function EvidenceBadge({ kind, className, note, label }: { kind: Evidence; className?: string; note?: string; /** 화면에 따라 다른 이름으로 보일 때 */ label?: string }) {
   const e = EVIDENCE[kind]
   return (
     <span title={note ? `${e.meaning}. ${note}` : e.meaning}
       className={cn('inline-flex shrink-0 cursor-help items-center whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-semibold leading-4', e.tone, className)}>
-      {e.label}
+      {label ?? e.label}
     </span>
   )
 }

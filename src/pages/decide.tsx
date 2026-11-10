@@ -7,7 +7,7 @@ import { ASSUME, dataFor, expectedEffect, launchId, MAX_SLOTS, recommendedStores
 import { COLLABS, type CollabItem } from '@/lib/collab'
 import { RADAR } from '@/lib/trend-data'
 import { addWeeks, shortDate, type RadarAction, type RadarItem } from '@/lib/trend'
-import { conceptSub, conceptWhy, H, radarItem, SALE, timingOf, TRENDS, type Concept, type Trend, type TrendStatus } from '@/lib/flavor-trends'
+import { conceptBase, conceptSub, conceptWhy, H, radarItem, SALE, timingOf, TRENDS, type Concept, type Trend, type TrendStatus } from '@/lib/flavor-trends'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 const { meta, scores, items } = RADAR
 const fresh = items.filter((i) => i.actual === null)
-const flavors = fresh.filter((i) => i.action === '후보' || i.action === '시즌').sort((a, b) => b.prob - a.prob)
+const flavors = fresh.filter((i) => (i.action === '후보' || i.action === '시즌') && !i.brand).sort((a, b) => b.prob - a.prob)
 const collabs = COLLABS.filter((c) => c.action !== '제외')
 
 const man = (x: number) => (x >= 10000 ? `${(x / 10000).toFixed(1)}억` : `${Math.round(x).toLocaleString()}만`)
@@ -63,7 +63,7 @@ function StatusPill({ status }: { status: TrendStatus }) {
   return <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold', STATUS_STYLE[status])}>{status}</span>
 }
 function Delta({ v }: { v: number }) {
-  return <span className={cn('num inline-flex h-6 items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-2 text-xs font-semibold', v > 0 ? 'bg-flavor-sky text-sky-800 dark:text-sky-200' : 'bg-flavor-sand text-flavor-brown-ink')}>{v > 0 ? '▲' : v < 0 ? '▼' : '−'}{Math.abs(v)}</span>
+  return <span className={cn('num inline-flex h-6 items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-2 text-xs font-semibold', v > 0 ? 'bg-flavor-sky text-sky-800 dark:text-sky-200' : 'bg-flavor-sand text-flavor-brown-ink')}>{v > 0 ? '▲' : v < 0 ? '▼' : ''}{Math.abs(v)}</span>
 }
 const Ball = ({ color, className }: { color: string; className?: string }) => <i aria-hidden className={cn('block size-7 rounded-full', className)} style={{ background: `radial-gradient(circle at 34% 28%, #ffffffb0, ${color} 58%, #00000030 130%)` }} />
 const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="text-sm font-bold tracking-tight">{children}</h3>
@@ -126,7 +126,7 @@ function TrendList({ query, selected, onSelect }: { query: string; selected: str
         {list.length === 0 && <p className="rounded-2xl bg-muted/70 py-6 text-center text-sm text-muted-foreground">조건에 맞는 트렌드가 없습니다</p>}
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-4 md:grid-cols-4">
           {[
-            ['맛 후보', `${flavors.length}개`, `급등 ${fresh.length}개 중 ${H}주 뒤 생존 유력`],
+            ['맛 후보', `${flavors.length}개`, `급등 ${fresh.length}개 중 이달의 맛 후보·시즌 재출시`],
             ['콜라보 후보', `${collabs.filter((c) => c.action === '후보').length}개`, `관찰 ${collabs.filter((c) => c.action === '관찰').length}개 별도`],
             ['선출시 슬롯', `${scenarios.length}/${MAX_SLOTS}`, '동시에 선출시할 수 있는 맛'],
             ['맛 예측 정확도', `${Math.round(scores.model_bal * 100)}%`, '콜라보에는 적용하지 않음'],
@@ -177,6 +177,7 @@ function IngredientDetail({ it, onClose }: { it: RadarItem; onClose: () => void 
         <h3 className="text-base font-extrabold tracking-tight">{it.kw}</h3>
         <span className="text-xs text-muted-foreground">{it.type}</span>
         <Pill tone={a.tone}>{a.label}</Pill>
+        {it.warn && <span title={`평소 20대가 주로 찾던 디저트에 30세 이상 검색이 갑자기 몰린 급등. 과거 이런 급등은 ${Math.round(scores.warn_rate * 100)}%만 ${H}주를 버텼습니다`}><Pill tone="warn" className="cursor-help">주의</Pill></span>}
         {appr[launchKey(it.kw)] ? <Pill tone="primary">선출시 중</Pill> : appr[skipKey(it.kw)] ? <Pill tone="neutral">출시 안 함</Pill> : null}
         <EvidenceBadge kind="ok" note="네이버 데이터랩 주간 검색량 실데이터" />
         <button type="button" onClick={onClose} aria-label="재료 상세 닫기" className={cn('ml-auto grid size-8 place-items-center rounded-full bg-card hover:bg-accent active:translate-y-px', FR)}><X className="size-4" /></button>
@@ -193,10 +194,10 @@ function IngredientDetail({ it, onClose }: { it: RadarItem; onClose: () => void 
           <Metric label="꾸준한 주" value={it.steady > 104 ? '2년+' : String(it.steady)} unit={it.steady > 104 ? '' : '주'} title="지금 수준의 25% 이상으로 이어진 주 수" />
           <Metric label="전성기 대비" value={String(it.size)} unit="%" title="이 키워드가 가장 많이 검색됐던 주를 100%로 볼 때 지금 검색량" />
           <Metric label={`${H}주 생존`} value={String(Math.round(it.prob * 100))} unit="%" strong title={`감지 후 ${H}주 뒤 검색량이 감지 시점의 50% 이상일 확률`} />
-          <Metric label="모델 정확도" value={String(Math.round(scores.model_bal * 100))} unit="%" title="처음 보는 키워드로 시험한 균형 정확도" />
+          <Metric label="주 검색 수" value={it.weekly.toLocaleString()} unit="회" title="감지 주의 실제 검색 수 (검색광고 API로 환산)" />
         </div>
       </div>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">후보는 {H}주 뒤 생존 확률 60% 이상이고 전성기 대비 {meta.minSize}% 이상인 키워드(반복형은 시즌 재출시)입니다. 해외에서 시작된 유행인지, 기존 스테디셀러와의 조합인지는 이 데이터로 알 수 없습니다. 급등 폭과 생존 확률의 계산은 <a href="#/radar" className="font-semibold text-primary underline underline-offset-4">트렌드 레이더</a>에 있습니다.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">후보는 {H}주 뒤 생존 확률 60% 이상이고 실제 검색이 주 {meta.minWeekly.toLocaleString()}회 이상인 키워드(반복형은 시즌 재출시)입니다. 해외에서 시작된 유행인지, 기존 스테디셀러와의 조합인지는 이 데이터로 알 수 없습니다. 급등 폭과 생존 확률의 계산은 <a href="#/radar" className="font-semibold text-primary underline underline-offset-4">트렌드 레이더</a>에 있습니다.</p>
     </section>
   )
 }
@@ -386,7 +387,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
               <span className="text-sm"><b>{launched.concept ?? launched.kw}</b> {launched.stores.length}곳 선출시 결정됨</span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setAppr(launchKey(cur.kw), null)}>결정 취소</Button>
-                <Button size="sm" onClick={() => go('react', { launch: launched.id })}>매장 반응 보기</Button>
+                <Button size="sm" onClick={() => go('react', { launch: launched.id, open: 1 })}>매장 반응 보기</Button>
               </div>
             </div>
           </div>
@@ -453,7 +454,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
                 onClick={() => {
                   const id = launchId(cur.kw)
                   setAppr(launchKey(cur.kw), { kind: 'launch', kw: cur.kw, concept: cur.concept, id, type: cur.type, launch: cur.kind === '콜라보' ? '콜라보' : '새로운 맛', prob: cur.prob, detected: cur.detected, stores: sel, price, cannibal: cannibal / 100, exp: { visitLo: ex.visitLo, visitHi: ex.visitHi, salesLo: ex.salesLo, salesHi: ex.salesHi } })
-                  go('react', { launch: id, from: 'launch' })
+                  go('react', { launch: id, from: 'launch', open: 1 })
                 }}>시식 테스트 요청</Button>
               <button type="button" aria-pressed={liked} aria-label={`${title} 찜하기`} onClick={onLike} className={cn('grid size-11 place-items-center rounded-full bg-accent text-primary active:translate-y-px', FR)}><Heart className={cn('size-4', liked && 'fill-current')} /></button>
               <Button variant="ghost" className="ml-auto h-11 text-muted-foreground" onClick={() => setAppr(skipKey(cur.kw), { kind: 'skip', kw: cur.kw, prob: cur.prob, type: cur.type })}>출시 안 함</Button>
@@ -478,7 +479,7 @@ export default function Decide() {
   const t = TRENDS.find((x) => x.id === themeId) ?? TRENDS[0]
   useEffect(() => { setOffset(0); setConceptId(null) }, [themeId])
 
-  const shown = [0, 1, 2].map((i) => t.concepts[(offset + i) % t.concepts.length])
+  const shown = Array.from({ length: Math.min(3, t.concepts.length) }, (_, i) => t.concepts[(offset + i) % t.concepts.length])
   const concept = t.concepts.find((c) => c.id === conceptId) ?? shown[0]
   const leadItem = radarItem(concept.lead)
   const collab = collabs.find((c) => c.kw === collabKw) ?? collabs[0]
@@ -543,7 +544,7 @@ export default function Decide() {
             <>
               <div className={cn('flex flex-1 flex-wrap items-center justify-center gap-4 rounded-3xl p-5 sm:flex-nowrap sm:justify-between', ART_BG[concept.art.bg])}>
                 <ul className="flex shrink-0 flex-col gap-3 text-xs font-medium">
-                  {[[concept.base, concept.art.scoop], [concept.ribbon, concept.art.ribbon], [concept.topping, concept.art.bits]].map(([label, color]) => <li key={label} className="flex items-center gap-2"><i className="size-5 rounded-full border border-black/10" style={{ background: color }} />{label}</li>)}
+                  {[[conceptBase(concept), concept.art.scoop], [concept.ribbon, concept.art.ribbon], [concept.topping, concept.art.bits]].map(([label, color]) => <li key={label} className="flex items-center gap-2"><i className="size-5 rounded-full border border-black/10" style={{ background: color }} />{label}</li>)}
                 </ul>
                 <Scoop art={concept.art} className="h-56 sm:h-64" />
                 <span className="hidden w-12 shrink-0 xl:block" />
@@ -570,7 +571,7 @@ export default function Decide() {
             <div className="mt-4">
               <Heading>구성</Heading>
               <dl className="mt-1">
-                <Row k="베이스">{concept.base}{concept.tag === '정면 승부형' && <span className="text-muted-foreground"> (신규 배합)</span>}</Row>
+                <Row k="베이스">{conceptBase(concept)}<span className="text-muted-foreground"> ({concept.isNew ? '신규 개발' : concept.blend ? '배합 조정' : '기존 배합 그대로'})</span></Row>
                 <Row k="리본">{concept.ribbon}</Row>
                 <Row k="토핑">{concept.topping}</Row>
                 <Row k="연결되는 맛">{concept.linked}</Row>
@@ -586,11 +587,12 @@ export default function Decide() {
       </footer>
 
       <HowTo>
-        <p><b>트렌드 묶음:</b> 레이더가 최근 {H}주 안에 감지한 재료 {fresh.length}개를 맛의 결이 비슷한 5개로 팀이 묶었습니다(가설). 묶는 기준이 바뀌면 src/lib/flavor-trends.ts만 고치면 됩니다.</p>
+        <p><b>트렌드 묶음:</b> 레이더가 감지한 급등 {fresh.length}개 중 아이스크림으로 풀기 좋은 재료 {TRENDS.reduce((n, x) => n + x.ingredients.length, 0)}개를 맛의 결이 비슷한 {TRENDS.length}개로 팀이 묶었습니다(가설). 상표 이름은 뺐습니다. 묶는 기준이 바뀌면 src/lib/flavor-trends.ts만 고치면 됩니다.</p>
+        <p className="mt-1"><b>맛 조합 유형:</b> 베이스만 보고 정합니다. 베이스를 새로 개발하면 정면 승부형, 기존 맛을 바탕으로 배합을 조정하면 트렌드 결합형, 베이스는 그대로 두고 리본과 토핑만 더하면 빠른 대응형입니다. 조합은 팀 가설이고 판매 근거는 없습니다.</p>
         <p className="mt-1"><b>확산 지수:</b> 재료별 검색량을 화면의 최근 3년 최고 = 100으로 맞춘 뒤 묶음 평균을 낸 이번 주 값입니다. 지난주 대비는 같은 값의 지난주와의 차이입니다. SNS, 유튜브, 매장 메뉴 데이터는 없어 네이버 검색량만 씁니다.</p>
         <p className="mt-1"><b>상태:</b> 최근 4주 평균을 직전 12주 평균과 비교합니다. 1.15배 이상 뜨는 중, 1.05배 이상이면서 지수 70 이상이면 정점, 0.85배 이하 하락, 그 외 스테디.</p>
         <p className="mt-1"><b>출시 판단:</b> 묶음에서 {H}주 생존 확률이 가장 높은 후보 재료를 기준으로 합니다. 반복형은 최근 1년 정점 주가 내년에 돌아온다고 보고, 지금부터 {H}주 개발 후 {SALE}주 판매 구간과 비교합니다. 그 외 유형은 정점을 예측하지 않고 레이더 제안(후보 지금, 관찰, 단기 늦음)을 따릅니다.</p>
-        <p className="mt-1"><b>맛 후보:</b> 이번 주 검색량이 5 이상이고 직전 12주 평균의 1.5배 이상인 키워드를 급등으로 감지합니다. 급등 폭은 직전 4주 평균 대비, 평소 대비는 지난 1년 평균 대비입니다. 랜덤 포레스트가 곡선 특징 8개로 {H}주 뒤 생존 확률을 냅니다. 모델 성능과 곡선 묶음은 트렌드 레이더에서 봅니다.</p>
+        <p className="mt-1"><b>맛 후보:</b> 이번 주 검색량이 5 이상이고 직전 12주 평균의 1.5배 이상이면서, 실제 검색 수로 환산해 평소 흔들림의 {meta.z}배 이상 오른 키워드를 급등으로 감지합니다. 급등 폭은 직전 4주 평균 대비, 평소 대비는 지난 1년 평균 대비입니다. {H}주 생존은 급등으로 늘어난 검색의 {Math.round(meta.keep * 100)}% 이상이 {H}주 뒤에도 남을 확률입니다. 모델 설명과 성능, 곡선 묶음은 트렌드 레이더에서 봅니다.</p>
         <p className="mt-1"><b>콜라보 후보:</b> 같은 방식으로 최근 4주 평균이 직전 12주 평균의 1.5배 이상이고 전성기 대비 20% 이상이면 후보입니다. 콜라보에 맞게 학습한 생존 모델은 없어 확률은 내지 않습니다.</p>
         <p className="mt-1"><b>기대효과:</b> 과거 매장 사례가 아직 없어 상권 유형별 가정 진폭과 반응 곡선으로 4주 평균을 계산하고, 가정 범위로 ±40% 폭을 둡니다. 모델이 아니고, 반응이 며칠 이어질지는 예측하지 않습니다. 매출은 POS가 있어야 실측되며 객단가와 잠식률은 입력값입니다.</p>
       </HowTo>

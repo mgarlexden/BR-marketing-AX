@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Undo2 } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
 import { classify, DIR_LABEL, diagnose, shortName, verdict } from '@/lib/data'
@@ -196,6 +196,8 @@ function Log() {
 }
 
 export default function Feedback() {
+  const { q } = useApp()
+  useEffect(() => { if (q.at === 'log') document.getElementById('decision-log')?.scrollIntoView() }, [q.at])
   return (
     <div>
       <PageHeader title="환류" loop={[6]}
@@ -205,7 +207,7 @@ export default function Feedback() {
       <Cases />
       <LearnCard />
       <div className="mb-4"><RadarCard /></div>
-      <h2 className="mb-2 text-sm font-semibold">결정 로그</h2>
+      <h2 id="decision-log" className="mb-2 scroll-mt-20 text-sm font-semibold">결정 로그</h2>
       <Log />
       <HowTo title="환류 규칙">
         <p>두 종류의 정답을 따로 씁니다. 검색 기준은 출시 여부와 관계없이 모든 후보에 {H}주 뒤 정답이 생기고, 매장 기준은 선출시한 맛에만 생깁니다. 출시한 것만 학습하면 내가 고른 것만 배우는 편향이 생기므로 둘을 함께 봅니다.</p>

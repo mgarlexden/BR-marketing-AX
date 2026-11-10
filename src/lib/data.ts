@@ -91,7 +91,7 @@ export interface DayPoint {
 }
 export interface Store {
   id: string; type: StoreType; name: string; place: Place; base: number; dwell0: number; conv0: number; alloc: number; jitter: number
-  conv: number; lowConv: boolean; event?: boolean; /** 선출시 매장 (상권마다 1곳) */ pilot: boolean; baseline: number; baselineRaw: number; dwellBase: number; stock0: number
+  conv: number; lowConv: boolean; event?: boolean; /** 행사 시작일 (행사 매장만 의미 있음, 3일간) */ evStart?: number; /** 선출시 매장 (상권마다 1곳) */ pilot: boolean; baseline: number; baselineRaw: number; dwellBase: number; stock0: number
   series: DayPoint[]
 }
 export interface Data {
@@ -144,6 +144,7 @@ export function build(scnId: string, custom?: Scenario): Data {
     st.stock0 = stock
     let outLeft = 0
     const evStart = 5 + Math.floor(((st.jitter * 10) % 7))
+    st.evStart = evStart
     const series: DayPoint[] = []
     days.forEach((dy) => {
       const rt = amp * unit(scn.kind, dy.d, spec.speed * (0.92 + 0.16 * st.jitter))
@@ -369,7 +370,7 @@ export function milestones(data: Data): Milestones {
 
 /* ---------- 방향 판단 (확대, 유지, 보완, 정리) ---------- */
 export type Dir = 'wait' | 'expand' | 'maintain' | 'fix' | 'wrap'
-export const DIR_LABEL: Record<Dir, string> = { wait: '관찰 중', expand: '확대', maintain: '유지', fix: '보완', wrap: '정리' }
+export const DIR_LABEL: Record<Dir, string> = { wait: '관찰 중', expand: '확대 필요', maintain: '유지', fix: '보완 필요', wrap: '정리' }
 export const DIR_OPTIONS: Exclude<Dir, 'wait'>[] = ['expand', 'maintain', 'fix', 'wrap']
 /** 출시 유형마다 같은 선택지가 뜻하는 행동이 다르다 */
 export const DIR_MEANING: Record<LaunchKind, Record<Exclude<Dir, 'wait'>, string>> = {
@@ -442,9 +443,9 @@ export function verdictPhases(data: Data, D: number): VerdictPhase[] {
 
 export const DIR_RULE: Record<Dir, string> = {
   wait: '출시 후 3일부터 판단합니다',
-  expand: '반응 25% 이상이고 오르는 중이면 확대',
+  expand: '반응 25% 이상이고 오르는 중이면 확대 필요',
   maintain: '방향을 바꿀 신호가 없으면 유지',
-  fix: '구매 점검 3곳 이상, 놓친 판매 8% 이상이면 보완',
+  fix: '구매 점검 3곳 이상, 놓친 판매 8% 이상이면 보완 필요',
   wrap: '반응 12% 미만이거나 25% 아래로 계속 내려가면 정리',
 }
 
