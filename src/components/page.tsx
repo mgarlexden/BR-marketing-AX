@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
-/** 왼쪽 메뉴 탭(트렌드, 매장 반응, 환류)의 제목과 한 줄 설명. 설명은 20자 이내로 쓴다 */
+/** 왼쪽 메뉴 탭(트렌드, 매장 반응, 모델)의 제목과 한 줄 설명. 설명은 20자 이내로 쓴다 */
 export function TabTitle({ title, desc, badge, children }: { title: string; desc?: ReactNode; badge?: ReactNode; children?: ReactNode }) {
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">

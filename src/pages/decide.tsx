@@ -18,9 +18,8 @@ import { EvidenceBadge } from '@/components/evidence'
 import { ART_BG, Scoop } from '@/components/scoop'
 import { cn } from '@/lib/utils'
 
-const { meta, scores, items } = RADAR
+const { meta, scores, items, season } = RADAR
 const fresh = items.filter((i) => i.actual === null)
-const flavors = fresh.filter((i) => (i.action === '후보' || i.action === '시즌') && !i.brand).sort((a, b) => b.prob - a.prob)
 const collabs = COLLABS.filter((c) => c.action !== '제외')
 
 const man = (x: number) => (x >= 10000 ? `${(x / 10000).toFixed(1)}억` : `${Math.round(x).toLocaleString()}만`)
@@ -45,6 +44,7 @@ const STATUS_STYLE: Record<TrendStatus, string> = {
 }
 const FILTERS: ('전체' | TrendStatus)[] = ['전체', '뜨는 중', '정점', '스테디', '하락']
 const ROW = 'md:grid-cols-[2.25rem_2rem_minmax(11rem,14rem)_minmax(0,1fr)_2.5rem_3.75rem_6.5rem]'
+const MAIN_N = 5
 
 const useLikes = () => {
   const [likes, setLikes] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('br-flavor-likes') || '[]') } catch { return [] } })
@@ -80,11 +80,36 @@ function downloadReport() {
   URL.revokeObjectURL(url)
 }
 
+function TrendRow({ t, on, onSelect }: { t: Trend; on: boolean; onSelect: () => void }) {
+  return (
+    <li>
+      <button type="button" aria-pressed={on} onClick={onSelect}
+        className={cn('grid w-full grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-lg px-2 py-2 text-left text-sm transition-colors', FR, on ? 'bg-accent/70' : 'hover:bg-muted/60')}>
+        <span className="num text-xs text-muted-foreground">{TRENDS.indexOf(t) + 1}</span>
+        <span className="min-w-0 truncate"><b>{t.name}</b><span className="ml-2 text-xs text-muted-foreground">{t.status} · 출시 판단 {t.timing.label}</span></span>
+        <span className="num text-xs text-muted-foreground">확산 {t.index}<span className={cn('ml-1.5', t.delta > 0 && 'text-sky-700 dark:text-sky-300')}>{t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : ''}{Math.abs(t.delta)}</span></span>
+      </button>
+    </li>
+  )
+}
+
+function More({ n, children }: { n: number; children: React.ReactNode }) {
+  if (n <= 0) return null
+  return (
+    <details className="group mt-0.5">
+      <summary className={cn('flex cursor-pointer list-none items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden', FR)}>더보기 {n}개<ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden /></summary>
+      {children}
+    </details>
+  )
+}
+
 function TrendList({ query, selected, onSelect }: { query: string; selected: string; onSelect: (id: string) => void }) {
   const { scenarios } = useApp()
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('전체')
   const q = query.trim()
   const list = TRENDS.filter((t) => (filter === '전체' || t.status === filter) && (!q || t.name.includes(q) || t.ingredients.some((i) => i.kw.includes(q))))
+  const cands = fresh.filter((i) => i.action === '후보').length
+  const seasonal = fresh.filter((i) => i.action === '시즌').length
   const fastest = TRENDS.reduce((a, b) => (b.delta > a.delta ? b : a))
   return (
       <Card className="mb-5 border-border pb-5">
@@ -102,7 +127,7 @@ function TrendList({ query, selected, onSelect }: { query: string; selected: str
           <span className="col-span-3">순위 · 트렌드</span><span>확산 지수 (0~100)</span><span /><span className="text-center">지난주 대비</span><span className="text-center">12주 추이</span>
         </div>
         <ol className="flex flex-col gap-2.5">
-          {list.map((t) => {
+          {list.slice(0, MAIN_N).map((t) => {
             const on = t.id === selected
             return (
               <li key={t.id}>
@@ -123,10 +148,13 @@ function TrendList({ query, selected, onSelect }: { query: string; selected: str
             )
           })}
         </ol>
+        <More n={list.length - MAIN_N}>
+          <ol className="flex flex-col">{list.slice(MAIN_N).map((t) => <TrendRow key={t.id} t={t} on={t.id === selected} onSelect={() => onSelect(t.id)} />)}</ol>
+        </More>
         {list.length === 0 && <p className="rounded-2xl bg-muted/70 py-6 text-center text-sm text-muted-foreground">조건에 맞는 트렌드가 없습니다</p>}
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-4 md:grid-cols-4">
           {[
-            ['맛 후보', `${flavors.length}개`, `급등 ${fresh.length}개 중 이달의 맛 후보·시즌 재출시`],
+            ['이달의 맛 후보', `${cands}개`, `급등 ${fresh.length}개 중 · 시즌 재출시 ${seasonal}개 별도`],
             ['콜라보 후보', `${collabs.filter((c) => c.action === '후보').length}개`, `관찰 ${collabs.filter((c) => c.action === '관찰').length}개 별도`],
             ['선출시 슬롯', `${scenarios.length}/${MAX_SLOTS}`, '동시에 선출시할 수 있는 맛'],
             ['맛 예측 정확도', `${Math.round(scores.model_bal * 100)}%`, '콜라보에는 적용하지 않음'],
@@ -197,7 +225,7 @@ function IngredientDetail({ it, onClose }: { it: RadarItem; onClose: () => void 
           <Metric label="주 검색 수" value={it.weekly.toLocaleString()} unit="회" title="감지 주의 실제 검색 수 (검색광고 API로 환산)" />
         </div>
       </div>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">후보는 {H}주 뒤 생존 확률 60% 이상이고 실제 검색이 주 {meta.minWeekly.toLocaleString()}회 이상인 키워드(반복형은 시즌 재출시)입니다. 해외에서 시작된 유행인지, 기존 스테디셀러와의 조합인지는 이 데이터로 알 수 없습니다. 급등 폭과 생존 확률의 계산은 <a href="#/radar" className="font-semibold text-primary underline underline-offset-4">트렌드 레이더</a>에 있습니다.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">후보는 {H}주 뒤 생존 확률 60% 이상이고 실제 검색이 주 {meta.minWeekly.toLocaleString()}회 이상인 키워드(반복형은 시즌 재출시)입니다. 해외에서 시작된 유행인지, 기존 스테디셀러와의 조합인지는 이 데이터로 알 수 없습니다. 급등 폭과 생존 확률의 계산은 <a href="#/feedback" className="font-semibold text-primary underline underline-offset-4">모델 탭</a>에 있습니다.</p>
     </section>
   )
 }
@@ -393,7 +421,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
           </div>
         ) : skipped ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted/70 px-4 py-3 text-sm">
-            <span><b>{cur.kw}</b> 출시 안 함으로 기록했습니다.{cur.kind === '맛' && ` ${H}주 뒤 실제 검색 결과와 환류에서 비교합니다.`}</span>
+            <span><b>{cur.kw}</b> 출시 안 함으로 기록했습니다.{cur.kind === '맛' && ` ${H}주 뒤 실제 검색 결과와 모델 탭에서 비교합니다.`}</span>
             <Button variant="outline" size="sm" onClick={() => setAppr(skipKey(cur.kw), null)}>기록 취소</Button>
           </div>
         ) : (
@@ -464,6 +492,47 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
         )}
       </div>
     </Card>
+  )
+}
+
+/** 묶음에 들어간 재료를 13주 생존 확률 순으로. 상위 5개만 보이고 나머지는 더보기 */
+const INGREDIENTS = Array.from(new Map(TRENDS.flatMap((t) => t.ingredients).map((i) => [i.kw, i])).values()).sort((a, b) => b.prob - a.prob)
+
+function SurviveLine({ it }: { it: RadarItem }) {
+  return (
+    <li className="grid grid-cols-[6.5rem_2.75rem_5rem_minmax(0,1fr)] items-center gap-x-3 py-1.5 text-sm">
+      <span className="truncate font-medium">{it.kw}</span>
+      <span className="num text-right font-bold">{Math.round(it.prob * 100)}%</span>
+      <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-white/20"><i className="block h-full rounded-full bg-white" style={{ width: `${it.prob * 100}%` }} /></span>
+      <span className="truncate text-xs text-white/70">{it.type} · {ACTION[it.action].label}</span>
+    </li>
+  )
+}
+
+/** 다가오는 시즌: 달마다 정점 재료 상위 5개만. 상표 이름은 뺀다 */
+function SeasonSoon() {
+  return (
+    <section aria-label="다가오는 시즌" className="mt-4 rounded-3xl bg-muted/60 px-5 py-4">
+      <h3 className="mb-3 text-sm font-bold">다가오는 시즌 <span className="text-xs font-normal text-muted-foreground">매년 이 무렵 정점인 재료 · 정점 주 검색 수 순 상위 5개</span></h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {season.months.map((m) => {
+          const top = season.items.filter((i) => i.month === m && !i.brand).sort((a, b) => b.peak - a.peak).slice(0, 5)
+          return (
+            <div key={m} className="rounded-2xl bg-card px-4 py-3">
+              <p className="mb-1 text-xs font-bold">{m}월 정점</p>
+              <ul>{top.map((i) => (
+                <li key={i.kw} className="grid grid-cols-[6rem_4.5rem_minmax(0,1fr)] items-baseline gap-x-2 py-0.5 text-xs">
+                  <span className="truncate font-medium">{i.kw}</span>
+                  <span className="num text-right font-semibold">주 {i.peak >= 10000 ? `${(i.peak / 10000).toFixed(1)}만` : i.peak.toLocaleString()}회</span>
+                  <span className="text-muted-foreground">{i.years === i.total ? '매년 반복' : `${i.total}년 중 ${i.years}번`}</span>
+                </li>
+              ))}</ul>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-3 text-[11px] leading-snug text-muted-foreground">정점 주 검색 수는 최근 1년 중 가장 많이 검색된 주의 실제 검색 수예요. "매년 반복"은 기록이 있는 해마다 이 달 전후 한 달 안에 정점이 왔다는 뜻이에요. 반복형은 대부분 해당돼서 순서는 검색 규모로 정했고, 이달의 맛까지 {H}주가 걸려요.</p>
+    </section>
   )
 }
 
@@ -577,10 +646,25 @@ export default function Decide() {
         )}
       </div>
 
-      <footer className="mt-5 flex flex-wrap items-end justify-between gap-2 rounded-3xl bg-flavor-brown px-6 py-6 text-white">
-        <div><p className="text-2xl font-extrabold tracking-tight">Flavor Radar</p><p className="mt-1 text-xs text-white/85">감지 → 기획 → 출시 타이밍 → 출시 후 측정</p></div>
-        <p className="text-xs text-white/85">데이터 기준일 {shortDate(meta.last)}</p>
+      <footer className="mt-5 rounded-3xl bg-flavor-brown px-6 py-6 text-white">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div><p className="text-2xl font-extrabold tracking-tight">Flavor Radar</p><p className="mt-1 text-xs text-white/85">감지 → 기획 → 출시 타이밍 → 출시 후 측정</p></div>
+          <p className="text-xs text-white/85">데이터 기준일 {shortDate(meta.last)}</p>
+        </div>
+        <div className="mt-4 border-t border-white/20 pt-3">
+          <p className="text-sm font-bold">재료별 {H}주 뒤에 남을 확률</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-white/75">급등으로 늘어난 검색의 {Math.round(meta.keep * 100)}% 이상이 {H}주 뒤에도 남을 확률. 반복형은 확률과 상관없이 시즌 재출시로 분류돼요.</p>
+          <ul className="mt-2 max-w-xl divide-y divide-white/10">{INGREDIENTS.slice(0, MAIN_N).map((i) => <SurviveLine key={i.kw} it={i} />)}</ul>
+          {INGREDIENTS.length > MAIN_N && (
+            <details className="group mt-1">
+              <summary className="flex cursor-pointer list-none items-center gap-1 py-1.5 text-xs font-semibold text-white/80 hover:text-white [&::-webkit-details-marker]:hidden">더보기 {INGREDIENTS.length - MAIN_N}개<ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden /></summary>
+              <ul className="max-w-xl divide-y divide-white/10">{INGREDIENTS.slice(MAIN_N).map((i) => <SurviveLine key={i.kw} it={i} />)}</ul>
+            </details>
+          )}
+        </div>
       </footer>
+
+      <SeasonSoon />
 
       <HowTo>
         <p><b>트렌드 묶음:</b> 레이더가 감지한 급등 {fresh.length}개 중 아이스크림으로 풀기 좋은 재료 {TRENDS.reduce((n, x) => n + x.ingredients.length, 0)}개를 맛의 결이 비슷한 {TRENDS.length}개로 팀이 묶었습니다(가설). 상표 이름은 뺐습니다. 묶는 기준이 바뀌면 src/lib/flavor-trends.ts만 고치면 됩니다.</p>
@@ -588,7 +672,7 @@ export default function Decide() {
         <p className="mt-1"><b>확산 지수:</b> 재료별 검색량을 화면의 최근 3년 최고 = 100으로 맞춘 뒤 묶음 평균을 낸 이번 주 값입니다. 지난주 대비는 같은 값의 지난주와의 차이입니다. SNS, 유튜브, 매장 메뉴 데이터는 없어 네이버 검색량만 씁니다.</p>
         <p className="mt-1"><b>상태:</b> 최근 4주 평균을 직전 12주 평균과 비교합니다. 1.15배 이상 뜨는 중, 1.05배 이상이면서 지수 70 이상이면 정점, 0.85배 이하 하락, 그 외 스테디.</p>
         <p className="mt-1"><b>출시 판단:</b> 묶음에서 {H}주 생존 확률이 가장 높은 후보 재료를 기준으로 합니다. 반복형은 최근 1년 정점 주가 내년에 돌아온다고 보고, 지금부터 {H}주 개발 후 {SALE}주 판매 구간과 비교합니다. 그 외 유형은 정점을 예측하지 않고 레이더 제안(후보 지금, 관찰, 단기 늦음)을 따릅니다.</p>
-        <p className="mt-1"><b>맛 후보:</b> 이번 주 검색량이 5 이상이고 직전 12주 평균의 1.5배 이상이면서, 실제 검색 수로 환산해 평소 흔들림의 {meta.z}배 이상 오른 키워드를 급등으로 감지합니다. 급등 폭은 직전 4주 평균 대비, 평소 대비는 지난 1년 평균 대비입니다. {H}주 생존은 급등으로 늘어난 검색의 {Math.round(meta.keep * 100)}% 이상이 {H}주 뒤에도 남을 확률입니다. 모델 설명과 성능, 곡선 묶음은 트렌드 레이더에서 봅니다.</p>
+        <p className="mt-1"><b>맛 후보:</b> 이번 주 검색량이 5 이상이고 직전 12주 평균의 1.5배 이상이면서, 실제 검색 수로 환산해 평소 흔들림의 {meta.z}배 이상 오른 키워드를 급등으로 감지합니다. 급등 폭은 직전 4주 평균 대비, 평소 대비는 지난 1년 평균 대비입니다. {H}주 생존은 급등으로 늘어난 검색의 {Math.round(meta.keep * 100)}% 이상이 {H}주 뒤에도 남을 확률입니다. 모델 설명과 성능, 곡선 묶음은 모델 탭에서 봅니다.</p>
         <p className="mt-1"><b>콜라보 후보:</b> 같은 방식으로 최근 4주 평균이 직전 12주 평균의 1.5배 이상이고 전성기 대비 20% 이상이면 후보입니다. 콜라보에 맞게 학습한 생존 모델은 없어 확률은 내지 않습니다.</p>
         <p className="mt-1"><b>기대효과:</b> 과거 매장 사례가 아직 없어 상권 유형별 가정 진폭과 반응 곡선으로 4주 평균을 계산하고, 가정 범위로 ±40% 폭을 둡니다. 모델이 아니고, 반응이 며칠 이어질지는 예측하지 않습니다. 매출은 POS가 있어야 실측되며 객단가와 잠식률은 입력값입니다.</p>
       </HowTo>

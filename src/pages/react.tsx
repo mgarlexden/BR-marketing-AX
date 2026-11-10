@@ -246,10 +246,10 @@ function Judge() {
   return (
     <div className="flex flex-col gap-4">
       <EffectMetrics />
-      {pend.count === 0 && <EmptyState title="지금 대기 중인 판정이 없습니다. 같은 판정은 3일 동안 다시 올라오지 않고, 판정이 바뀌면 바로 다시 올라옵니다" action={{ label: '환류에서 기록 보기', onClick: () => { location.hash = '#/feedback' } }} />}
+      {pend.count === 0 && <EmptyState title="지금 대기 중인 판정이 없습니다. 같은 판정은 3일 동안 다시 올라오지 않고, 판정이 바뀌면 바로 다시 올라옵니다" action={{ label: '모델 탭에서 기록 보기', onClick: () => { location.hash = '#/feedback' } }} />}
       {pend.dir && <DirCard />}
       {pend.fix && <FixCard />}
-      <p className="text-xs text-muted-foreground">레이더 예상과 실제의 비교, 학습 반영 여부는 <button type="button" onClick={() => { location.hash = '#/feedback?launch=' + d.scn.id }} className="font-semibold text-primary underline underline-offset-4">환류</button>에서 결정합니다.</p>
+      <p className="text-xs text-muted-foreground">레이더 예상과 실제의 비교, 학습 반영 여부는 <button type="button" onClick={() => { location.hash = '#/feedback?launch=' + d.scn.id }} className="font-semibold text-primary underline underline-offset-4">모델 탭</button>에서 결정합니다.</p>
       <HowTo title="판정 기준">
         <p>확대 필요: 평소보다 25% 이상이고 최근 3일 오르는 중, 또는 정점의 80% 이상을 유지. 보완 필요: 구매 점검 매장이 3곳 이상이고 놓친 판매가 기대 판매의 8% 이상. 정리: 출시 후 6일부터 반응이 12% 아래로 식었거나, 25% 아래에서 계속 내려감. 그 외는 유지이며, 출시 후 3일 전에는 판단하지 않습니다.</p>
       </HowTo>

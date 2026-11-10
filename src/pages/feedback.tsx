@@ -15,6 +15,7 @@ import { Day } from '@/components/figures'
 import { EvidenceBadge } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 import { RadarCard } from './decisions'
+import { ModelPanel } from '@/components/model-panel'
 
 const { meta, items } = RADAR
 const H = meta.horizon
@@ -200,9 +201,18 @@ export default function Feedback() {
   useEffect(() => { if (q.at === 'log') document.getElementById('decision-log')?.scrollIntoView() }, [q.at])
   return (
     <div>
-      <PageHeader title="환류" loop={[6]}
-        sub="예측과 실제를 비교해 다음에 반영해요"
+      <PageHeader title="모델" loop={[6]}
+        sub="모델 성능을 보고, 예측과 실제를 비교해 다음에 반영해요"
         basis={{ level: '약함', why: '검색 기준 비교는 실데이터입니다. 매장 쪽 비교는 합성 데이터라 절차를 시연하는 용도이고, 학습 반영은 사람이 승인한 뒤에만 합니다.' }} />
+      <section aria-labelledby="sec-model">
+        <h2 id="sec-model" className="text-xl font-extrabold tracking-tight">모델 성능</h2>
+        <p className="mb-3 mt-0.5 text-xs text-muted-foreground">트렌드 레이더가 13주 뒤 생존을 얼마나 맞히는지</p>
+        <ModelPanel />
+      </section>
+
+      <section aria-labelledby="sec-loop" className="border-t border-border pt-6">
+        <h2 id="sec-loop" className="text-xl font-extrabold tracking-tight">환류</h2>
+        <p className="mb-3 mt-0.5 text-xs text-muted-foreground">예측과 실제를 비교하고, 학습에 반영할지 결정해요</p>
       <SearchCheck />
       <Cases />
       <LearnCard />
@@ -214,6 +224,7 @@ export default function Feedback() {
         <p className="mt-1">매장 사례는 출시 후 14일부터 판단하고 D+28에 확정합니다. 사례가 10건 미만이면 기록만 하고, 10건 이상이면 예상과 실측을 비교해 구간을 갱신하며, 30건 이상이면 재학습을 검토합니다. 품절, 행사 같은 이벤트가 있었던 사례는 학습에서 제외합니다.</p>
         <p className="mt-1">결정 시점의 예측과 기대효과는 그때 고정한 값이며, 이후 모델이 바뀌어도 바꾸지 않습니다. 반응이 며칠 이어질지는 예측하지 않으므로 그 항목의 비교는 없습니다.</p>
       </HowTo>
+      </section>
     </div>
   )
 }
