@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Activity, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, Repeat2, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
+import { Activity, History, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, Repeat2, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
 import { useApp, type RouteId } from '@/lib/app-context'
 import { pending } from '@/lib/derived'
 import { EvidenceLegend } from '@/components/evidence'
@@ -48,6 +48,7 @@ function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggl
           {NAV.map((n) => item(n.id, n.label, n.icon, n.id === 'react' ? pendingCount : n.id === 'feedback' ? radarPending : undefined, n.sub))}
         </nav>
         <div className="mt-auto flex flex-col gap-3 border-t border-sidebar-border pt-3">
+          {item('log', '결정 로그', History)}
           {item('privacy', '개인정보 보호', ShieldCheck)}
           <p className={cn('px-3 text-xs leading-relaxed text-muted-foreground', collapsed && 'lg:hidden')}>영상과 개인 ID 없이 존 단위 집계값만 사용합니다.</p>
           <button type="button" onClick={clearAppr} className={cn('px-3 text-left text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', collapsed && 'lg:hidden')}>의사결정 기록 지우기</button>
@@ -90,7 +91,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [])
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1760px]">
-      <Sidebar open={open} onClose={() => setOpen(false)} pendingCount={Number(pend.dir)} radarPending={Number(pend.radar)} collapsed={collapsed} onToggle={toggle} />
+      <Sidebar open={open} onClose={() => setOpen(false)} pendingCount={Number(pend.dir) + Number(pend.fix)} radarPending={Number(pend.radar)} collapsed={collapsed} onToggle={toggle} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenu={() => setOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1360px] flex-1 px-4 pt-5 pb-12 lg:px-6">{children}</main>
