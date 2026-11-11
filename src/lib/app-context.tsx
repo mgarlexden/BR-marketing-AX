@@ -3,9 +3,9 @@ import type { Data, Scenario } from './data'
 import type { Approvals } from './derived'
 import { dataFor, scenarioList } from './launch'
 
-export type RouteId = 'decide' | 'react' | 'feedback' | 'radar' | 'privacy'
+export type RouteId = 'decide' | 'react' | 'feedback' | 'log' | 'radar' | 'privacy'
 export const ROUTE_TITLES: Record<RouteId, string> = {
-  decide: '트렌드', react: '매장 반응', feedback: '환류', radar: '트렌드 레이더', privacy: '개인정보 보호',
+  decide: '트렌드', react: '매장 반응', feedback: '피드백', log: '결정 로그', radar: '트렌드 레이더', privacy: '개인정보 보호',
 }
 /** 이전 화면 주소로 들어와도 새 구조로 보낸다 */
 const LEGACY: Record<string, { route: RouteId; q: Record<string, string> }> = {
@@ -38,7 +38,8 @@ function parse(): { route: RouteId; q: Q } {
   const q: Q = {}
   if (qi >= 0) new URLSearchParams(h.slice(qi + 1)).forEach((v, k) => { q[k] = v })
   const lg = LEGACY[name]
-  if (lg) { route = lg.route; Object.entries(lg.q).forEach(([k, v]) => { if (!q[k]) q[k] = v }); if (name === 'decisions' && q.tab === 'log') { route = 'feedback'; delete q.tab } }
+  if (lg) { route = lg.route; Object.entries(lg.q).forEach(([k, v]) => { if (!q[k]) q[k] = v }); if (name === 'decisions' && q.tab === 'log') { route = 'log'; delete q.tab } }
+  if (route === 'feedback' && q.at === 'log') { route = 'log'; delete q.at }
   return { route, q }
 }
 

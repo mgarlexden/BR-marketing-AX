@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Activity, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, Repeat2, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
+import { Activity, History, MapPinned, Menu, Moon, PanelLeftClose, PanelLeftOpen, Repeat2, ScanEye, ShieldCheck, Sun, TrendingUp, X } from 'lucide-react'
 import { useApp, type RouteId } from '@/lib/app-context'
 import { pending } from '@/lib/derived'
 import { EvidenceLegend } from '@/components/evidence'
@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 const NAV: { id: RouteId; label: string; sub: string; icon: typeof ScanEye }[] = [
   { id: 'decide', label: '트렌드', sub: '1', icon: TrendingUp },
   { id: 'react', label: '매장 반응', sub: '2', icon: MapPinned },
-  { id: 'feedback', label: '환류', sub: '3', icon: Repeat2 },
+  { id: 'feedback', label: '피드백', sub: '3', icon: Repeat2 },
   { id: 'radar', label: '트렌드 레이더', sub: '', icon: Activity },
 ]
 
@@ -18,10 +18,10 @@ function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggl
     const on = route === id
     return (
       <a key={id} href={href(id)} aria-current={on ? 'page' : undefined} onClick={onClose} title={collapsed ? label : undefined}
-        className={cn('relative flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          on ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60')}>
+        className={cn('relative flex h-12 items-center gap-3 rounded-xl border border-transparent px-3 text-[15px] font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          on ? 'picked font-semibold' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60')}>
         {sub ? (
-          <span className={cn('num grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold', on ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{sub}</span>
+          <span className={cn('num grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold', on ? 'bg-pick text-white' : 'bg-muted text-muted-foreground')}>{sub}</span>
         ) : <Icon className="size-5 shrink-0" />}
         <span className={cn('flex-1', collapsed && 'lg:hidden')}>{label}</span>
         {!!badge && (
@@ -48,6 +48,7 @@ function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggl
           {NAV.map((n) => item(n.id, n.label, n.icon, n.id === 'react' ? pendingCount : n.id === 'feedback' ? radarPending : undefined, n.sub))}
         </nav>
         <div className="mt-auto flex flex-col gap-3 border-t border-sidebar-border pt-3">
+          {item('log', '결정 로그', History)}
           {item('privacy', '개인정보 보호', ShieldCheck)}
           <p className={cn('px-3 text-xs leading-relaxed text-muted-foreground', collapsed && 'lg:hidden')}>영상과 개인 ID 없이 존 단위 집계값만 사용합니다.</p>
           <button type="button" onClick={clearAppr} className={cn('px-3 text-left text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', collapsed && 'lg:hidden')}>의사결정 기록 지우기</button>

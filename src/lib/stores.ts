@@ -1,42 +1,287 @@
-/* 손님 유형별 대표 매장 15곳(유형마다 3곳)과 대조 매장(가상) 20곳. 방문·반응 수치는 data.ts에서 합성한다. */
+/* 매장 20곳의 이름과 위치, 입지 지표. 방문·반응 수치는 data.ts에서 합성한다. */
 import type { StoreType } from './data'
 
-export type License = '영업' | '인허가 없음' | '가상'
-export interface Place {
-  type: StoreType; name: string; gu: string
-  /** 유형을 정한 기준 지역 (행정동 또는 상권) */
-  dong: string
-  direct: boolean; area: number | null; license: License
-  /** 대표 매장이면 선출시 대상. 아니면 대조 매장(가상) */
-  rep: boolean
-}
+export interface Place { type: StoreType; name: string; gu: string; dong: string; direct: boolean; flow: number; work: number; resi: number; age2030: number; weekend: number; lunch: number; subway: number }
 
-const rep = (type: StoreType, name: string, gu: string, dong: string, direct: boolean, area: number | null, license: License = '영업'): Place => ({ type, name, gu, dong, direct, area, license, rep: true })
-const ctrl = (type: StoreType, n: number): Place => ({ type, name: `${type} 일반 ${'ABCD'[n]}점`, gu: '-', dong: '대조 매장(가상)', direct: false, area: null, license: '가상', rep: false })
-
-/** 유형마다 대표 3곳 → 대조 4곳 순서. data.ts가 이 순서(유형당 7곳)로 읽는다 */
 export const PLACES: Place[] = [
-  rep('2030', '서울대병원점', '종로구', '이화동', true, 40.5),
-  rep('2030', '왕십리민자역사점', '성동구', '왕십리역', true, 35.5),
-  rep('2030', '관악은천점', '관악구', '은천초등학교', false, 123),
-  ...[0, 1, 2, 3].map((n) => ctrl('2030', n)),
-  rep('4050 가족', '증미역점', '강서구', '염창동', false, 116),
-  rep('4050 가족', '광나루역점', '광진구', '광장동', false, 115.3),
-  rep('4050 가족', '위례중앙점', '송파구', '위례동', false, 114.8),
-  ...[0, 1, 2, 3].map((n) => ctrl('4050 가족', n)),
-  rep('관광·나들이', '대학로점', '종로구', '대학로', true, 270.6),
-  rep('관광·나들이', '시청역점', '중구', '명동 관광특구', true, 124.3),
-  rep('관광·나들이', '홍대상상마당점', '마포구', '홍대입구역', true, null, '인허가 없음'),
-  ...[0, 1, 2, 3].map((n) => ctrl('관광·나들이', n)),
-  rep('직장인', '여의도IFC몰점', '영등포구', '여의도역', true, 250),
-  rep('직장인', '광화문점', '종로구', '종각역', true, 157.3),
-  rep('직장인', '한남점', '용산구', '한남오거리', true, null, '인허가 없음'),
-  ...[0, 1, 2, 3].map((n) => ctrl('직장인', n)),
-  rep('혼합', '청량리역사점', '동대문구', '청량리역', true, null, '인허가 없음'),
-  rep('혼합', '대림우성점', '영등포구', '대림역', false, 190),
-  rep('혼합', '마포성산점', '마포구', '성산2동', false, 189.1),
-  ...[0, 1, 2, 3].map((n) => ctrl('혼합', n)),
+ {
+  "type": "대학가",
+  "name": "홍대상상마당점",
+  "gu": "마포구",
+  "dong": "서교동",
+  "direct": true,
+  "flow": 189600,
+  "work": 25701,
+  "resi": 24037,
+  "age2030": 0.54,
+  "weekend": 0.3,
+  "lunch": 0.15,
+  "subway": 1
+ },
+ {
+  "type": "대학가",
+  "name": "대학로점",
+  "gu": "종로구",
+  "dong": "혜화동",
+  "direct": true,
+  "flow": 103000,
+  "work": 4377,
+  "resi": 15833,
+  "age2030": 0.49,
+  "weekend": 0.29,
+  "lunch": 0.13,
+  "subway": 1
+ },
+ {
+  "type": "대학가",
+  "name": "외대점",
+  "gu": "동대문구",
+  "dong": "이문1동",
+  "direct": false,
+  "flow": 154600,
+  "work": 1106,
+  "resi": 17724,
+  "age2030": 0.49,
+  "weekend": 0.29,
+  "lunch": 0.11,
+  "subway": 1
+ },
+ {
+  "type": "대학가",
+  "name": "건대스타시티점",
+  "gu": "광진구",
+  "dong": "화양동",
+  "direct": false,
+  "flow": 101400,
+  "work": 872,
+  "resi": 24821,
+  "age2030": 0.62,
+  "weekend": 0.29,
+  "lunch": 0.11,
+  "subway": 2
+ },
+ {
+  "type": "오피스",
+  "name": "SPC스퀘어점",
+  "gu": "강남구",
+  "dong": "역삼1동",
+  "direct": true,
+  "flow": 216300,
+  "work": 202016,
+  "resi": 34082,
+  "age2030": 0.49,
+  "weekend": 0.22,
+  "lunch": 0.18,
+  "subway": 4
+ },
+ {
+  "type": "오피스",
+  "name": "여의도IFC몰점",
+  "gu": "영등포구",
+  "dong": "여의동",
+  "direct": true,
+  "flow": 71600,
+  "work": 250897,
+  "resi": 33346,
+  "age2030": 0.35,
+  "weekend": 0.22,
+  "lunch": 0.17,
+  "subway": 4
+ },
+ {
+  "type": "오피스",
+  "name": "강남대로점",
+  "gu": "서초구",
+  "dong": "서초4동",
+  "direct": true,
+  "flow": 71000,
+  "work": 40288,
+  "resi": 30281,
+  "age2030": 0.36,
+  "weekend": 0.25,
+  "lunch": 0.15,
+  "subway": 0
+ },
+ {
+  "type": "오피스",
+  "name": "양재사옥점",
+  "gu": "강남구",
+  "dong": "도곡1동",
+  "direct": true,
+  "flow": 101300,
+  "work": 32403,
+  "resi": 20005,
+  "age2030": 0.26,
+  "weekend": 0.26,
+  "lunch": 0.13,
+  "subway": 1
+ },
+ {
+  "type": "주거",
+  "name": "노원로데오점",
+  "gu": "노원구",
+  "dong": "상계2동",
+  "direct": false,
+  "flow": 108300,
+  "work": 1731,
+  "resi": 19105,
+  "age2030": 0.29,
+  "weekend": 0.3,
+  "lunch": 0.12,
+  "subway": 1
+ },
+ {
+  "type": "주거",
+  "name": "아현역점",
+  "gu": "서대문구",
+  "dong": "북아현동",
+  "direct": false,
+  "flow": 300100,
+  "work": 918,
+  "resi": 15401,
+  "age2030": 0.38,
+  "weekend": 0.22,
+  "lunch": 0.16,
+  "subway": 1
+ },
+ {
+  "type": "주거",
+  "name": "암사역점",
+  "gu": "강동구",
+  "dong": "암사1동",
+  "direct": false,
+  "flow": 93800,
+  "work": 3050,
+  "resi": 33825,
+  "age2030": 0.25,
+  "weekend": 0.3,
+  "lunch": 0.1,
+  "subway": 0
+ },
+ {
+  "type": "주거",
+  "name": "응암대림점",
+  "gu": "은평구",
+  "dong": "응암3동",
+  "direct": false,
+  "flow": 79300,
+  "work": 1446,
+  "resi": 23429,
+  "age2030": 0.29,
+  "weekend": 0.29,
+  "lunch": 0.11,
+  "subway": 0
+ },
+ {
+  "type": "역세권",
+  "name": "왕십리역사점",
+  "gu": "성동구",
+  "dong": "행당1동",
+  "direct": true,
+  "flow": 87600,
+  "work": 1709,
+  "resi": 13629,
+  "age2030": 0.38,
+  "weekend": 0.28,
+  "lunch": 0.13,
+  "subway": 1
+ },
+ {
+  "type": "역세권",
+  "name": "타임스퀘어점",
+  "gu": "영등포구",
+  "dong": "영등포동",
+  "direct": true,
+  "flow": 126100,
+  "work": 14034,
+  "resi": 29839,
+  "age2030": 0.45,
+  "weekend": 0.28,
+  "lunch": 0.15,
+  "subway": 2
+ },
+ {
+  "type": "역세권",
+  "name": "압구정역점",
+  "gu": "강남구",
+  "dong": "압구정동",
+  "direct": true,
+  "flow": 82700,
+  "work": 50479,
+  "resi": 26119,
+  "age2030": 0.36,
+  "weekend": 0.26,
+  "lunch": 0.17,
+  "subway": 1
+ },
+ {
+  "type": "역세권",
+  "name": "까치산역점",
+  "gu": "강서구",
+  "dong": "화곡8동",
+  "direct": false,
+  "flow": 150300,
+  "work": 1853,
+  "resi": 23468,
+  "age2030": 0.31,
+  "weekend": 0.28,
+  "lunch": 0.12,
+  "subway": 1
+ },
+ {
+  "type": "관광",
+  "name": "광화문점",
+  "gu": "중구",
+  "dong": "소공동",
+  "direct": true,
+  "flow": 26800,
+  "work": 92258,
+  "resi": 2178,
+  "age2030": 0.4,
+  "weekend": 0.16,
+  "lunch": 0.24,
+  "subway": 1
+ },
+ {
+  "type": "관광",
+  "name": "시청역점",
+  "gu": "중구",
+  "dong": "소공동",
+  "direct": true,
+  "flow": 26800,
+  "work": 92258,
+  "resi": 2178,
+  "age2030": 0.4,
+  "weekend": 0.16,
+  "lunch": 0.24,
+  "subway": 1
+ },
+ {
+  "type": "관광",
+  "name": "굿모닝시티점",
+  "gu": "중구",
+  "dong": "광희동",
+  "direct": false,
+  "flow": 68600,
+  "work": 52971,
+  "resi": 5676,
+  "age2030": 0.41,
+  "weekend": 0.23,
+  "lunch": 0.17,
+  "subway": 1
+ },
+ {
+  "type": "관광",
+  "name": "파르나스몰점",
+  "gu": "강남구",
+  "dong": "삼성1동",
+  "direct": true,
+  "flow": 55600,
+  "work": 189339,
+  "resi": 12134,
+  "age2030": 0.37,
+  "weekend": 0.24,
+  "lunch": 0.18,
+  "subway": 2
+ }
 ]
-
-/** 유형별 후보 매장 수(서울). 대표 매장 평균을 전국 평균으로 바꿀 때 가중치로 쓴다. 전국 비중이 아니라 가정 */
-export const TYPE_COUNT: Record<StoreType, number> = { '2030': 50, '4050 가족': 41, '관광·나들이': 7, '직장인': 55, '혼합': 131 }
