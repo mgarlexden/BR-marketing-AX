@@ -385,7 +385,7 @@ function Row({ k, children }: { k: keyof typeof PART; children: React.ReactNode 
 /** 고른 조합(또는 콜라보)의 상세. 맨 아래가 출시 결정 */
 function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, sub }: { cur: Pick; liked: boolean; onLike: () => void; children: React.ReactNode; verdict: string; eyebrow: string; tag: string; title: string; sub: string }) {
   const { appr, setAppr, go, scenarios } = useApp()
-  const stores = useMemo(() => dataFor(SCENARIOS.a).stores, [])
+  const stores = useMemo(() => dataFor(SCENARIOS.a).stores.filter((s) => s.place.rep), [])
   const [sel, setSel] = useState<string[]>(recommendedStores)
   const [price, setPrice] = useState(ASSUME.price)
   const [cannibal, setCannibal] = useState(Math.round(ASSUME.cannibal * 100))
@@ -397,14 +397,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
   const launched = appr[launchKey(cur.kw)] as LaunchDecision | undefined
   const skipped = appr[skipKey(cur.kw)] as SkipDecision | undefined
   const toggle = (id: string) => setSel(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
-  /** 상권이 가장 적게 들어간 곳부터 채워 상권이 고르게 유지되게 한다 */
-  const addStore = () => {
-    const count = (t: string) => sel.filter((id) => typeOf(id) === t).length
-    const next = stores.filter((s) => !sel.includes(s.id)).sort((a, b) => count(a.type) - count(b.type))[0]
-    if (next) setSel([...sel, next.id])
-  }
-  const sale = cur.kind === '콜라보' ? '팬 방문 중심의 4주 콜라보를 가정합니다' : `지금 개발을 시작하면 출시 예정일은 ${shortDate(addWeeks(meta.last, H))} 무렵입니다`
-  const stepBtn = cn('grid size-8 place-items-center rounded-full hover:bg-muted active:translate-y-px disabled:opacity-40', FR)
+  const sale = cur.kind === '콜라보' ? '팬 방문 중심의 4주 콜라보를 가정합니다' : `지금 개발을 시작하면 대표 매장 선출시는 ${shortDate(addWeeks(meta.last, H))} 무렵이고, 4주 반응을 본 뒤 전국 확대를 판단합니다`
 
   return (
     <Card className="flex flex-col">
@@ -425,11 +418,11 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
         {launched ? (
           <div className="mt-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-xs font-medium text-muted-foreground">기대 방문 증가 (대조 대비 4주 평균)</p><p className="num mt-0.5 text-xl font-bold tracking-tighter">+{pc(launched.exp.visitLo)}~{pc(launched.exp.visitHi)}</p><p className="text-xs text-muted-foreground">가정 범위</p></div>
-              <div><p className="text-xs font-medium text-muted-foreground">기대 매출 순증 (4주 합)</p><p className="num mt-0.5 text-xl font-bold tracking-tighter">{man(launched.exp.salesLo)}~{man(launched.exp.salesHi)}원</p><p className="text-xs text-muted-foreground">객단가 {launched.price.toLocaleString()}원, 잠식 {pc(launched.cannibal)} 가정</p></div>
+              <div><p className="text-xs font-medium text-muted-foreground">전국 평균 기대 방문 증가 (대조 대비 4주)</p><p className="num mt-0.5 text-xl font-bold tracking-tighter">+{pc(launched.exp.visitLo)}~{pc(launched.exp.visitHi)}</p><p className="text-xs text-muted-foreground">가정 범위</p></div>
+              <div><p className="text-xs font-medium text-muted-foreground">매장당 평균 기대 매출 순증 (4주 합)</p><p className="num mt-0.5 text-xl font-bold tracking-tighter">{man(launched.exp.salesLo)}~{man(launched.exp.salesHi)}원</p><p className="text-xs text-muted-foreground">객단가 {launched.price.toLocaleString()}원, 잠식 {pc(launched.cannibal)} 가정</p></div>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm"><b>{launched.concept ?? launched.kw}</b> {launched.stores.length}곳 선출시 결정됨</span>
+              <span className="text-sm"><b>{launched.concept ?? launched.kw}</b> 대표 매장 {launched.stores.length}곳 선출시 결정됨</span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setAppr(launchKey(cur.kw), null)}>결정 취소</Button>
                 <Button size="sm" onClick={() => go('react', { launch: launched.id, open: 1 })}>매장 반응 보기</Button>
@@ -449,8 +442,8 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
                 <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground"><span className="num">{sel.length ? `+${pc(ex.visitLo)}~${pc(ex.visitHi)} · ${man(ex.salesLo)}~${man(ex.salesHi)}원` : '-'}</span><ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden /></span>
               </summary>
               <div className="pb-4">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">선출시 매장 {sel.length}곳</p>
-                <p className="mb-3 text-xs leading-relaxed text-muted-foreground"><b className="text-foreground">매장 고르기:</b> 처음에는 상권 {TYPES.length}종({TYPES.join(', ')})마다 1곳씩 골라, 결과를 한 상권만의 반응으로 오해하지 않게 해요. + 버튼은 가장 적게 들어간 상권부터 한 곳씩 더해요. 매장 이름에 마우스를 올리면 동네와 유동 인구가 보여요.</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">대표 매장 {sel.length}곳 선출시 (손님 유형마다 3곳, 전부 선택에서 시작)</p>
+                <p className="mb-3 text-xs leading-relaxed text-muted-foreground"><b className="text-foreground">대표 매장:</b> 손님 유형 {TYPES.length}종({TYPES.join(', ')})마다 대표 3곳이 먼저 출시해요. 대표 매장 반응에 유형 가중치를 곱해 전국 평균을 미리 읽어요. 매장 이름에 마우스를 올리면 동네와 직영·가맹이 보여요.</p>
                 <div className="flex flex-col gap-2">
                   {TYPES.map((t) => (
                     <div key={t} className="flex flex-wrap items-center gap-1.5">
@@ -458,55 +451,52 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
                       {stores.filter((s) => s.type === t).map((s) => {
                         const on = sel.includes(s.id)
                         return (
-                          <button key={s.id} type="button" aria-pressed={on} onClick={() => toggle(s.id)} title={`${s.place.gu} ${s.place.dong} · 유동 ${Math.round(s.place.flow / 1000)}천명`}
+                          <button key={s.id} type="button" aria-pressed={on} onClick={() => toggle(s.id)} title={`${s.place.gu} ${s.place.dong} · ${s.place.direct ? '직영' : '가맹'}${s.place.license === '인허가 없음' ? ' · 영업 확인 필요' : ''}`}
                             className={cn('rounded-full border px-2.5 py-1 text-xs font-medium transition-colors active:translate-y-px', FR, on ? 'picked' : 'border-border text-muted-foreground hover:bg-accent/50')}>
-                            {s.name.replace(/점$/, '')}
+                            {s.name.replace(/점$/, '')}{s.place.license === '인허가 없음' && <span className="ml-1 text-primary" aria-label="영업 확인 필요">*</span>}
                           </button>
                         )
                       })}
                     </div>
                   ))}
                 </div>
-                {missing.length > 0 && sel.length > 0 && <p className="mt-2 text-xs text-primary">{missing.join(', ')} 상권 매장이 없습니다. 결과를 전체로 일반화하기 어렵습니다.</p>}
+                {sel.some((id) => stores.find((s) => s.id === id)?.place.license === '인허가 없음') && <p className="mt-2 text-xs text-muted-foreground"><span className="text-primary">*</span> 인허가 기록이 없는 직영점이라 실제 영업 여부 확인이 필요해요. 닫았다면 같은 유형의 다음 매장으로 바꿉니다.</p>}
+                {missing.length > 0 && sel.length > 0 && <p className="mt-2 text-xs text-primary">{missing.join(', ')} 유형의 대표 매장이 없습니다. 전국 평균 환산에서 이 유형은 빠집니다.</p>}
 
                 <div className="mt-4 border-t border-border pt-4">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">기대효과 <span className="font-normal">(과거 사례 0건. 상권 유형별 가정 범위이고 예측 모델이 아님)</span></p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">기대효과 <span className="font-normal">(과거 사례 0건. 손님 유형별 가정 범위에 유형 가중치를 곱한 전국 평균이고 예측 모델이 아님)</span></p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">미출시 매장 대비 방문 증가, 4주 평균 <EvidenceBadge kind="assume" /></p>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">전국 평균 방문 증가 (대조 대비, 4주) <EvidenceBadge kind="assume" /></p>
                       <p className="num text-xl font-bold tracking-tighter">{sel.length ? `+${pc(ex.visitLo)}~${pc(ex.visitHi)}` : '-'}</p>
                     </div>
                     <div>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">매출 순증, 4주 합 <EvidenceBadge kind="ext" note="POS가 있어야 실측할 수 있고, 객단가와 잠식률은 가정" /></p>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">매장당 평균 매출 순증, 4주 합 <EvidenceBadge kind="ext" note="POS가 있어야 실측할 수 있고, 객단가와 잠식률은 가정" /></p>
                       <p className="num text-xl font-bold tracking-tighter">{sel.length ? `${man(ex.salesLo)}~${man(ex.salesHi)}원` : '-'}</p>
                     </div>
                   </div>
-                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground"><b className="text-foreground">계산 방법:</b> 고른 매장마다 상권 유형별로 정해 둔 반응 크기(가정)에 이 재료 유형({cur.type})의 반응 곡선을 곱해, 출시 후 28일 동안 날마다 방문이 평소보다 몇 % 늘지 구하고 평균을 냅니다. 매출 순증은 그렇게 늘어난 방문 수를 28일 더한 뒤 객단가와 (1 − 잠식률)을 곱한 값이에요. 실제 사례가 없어 계산값의 60~140%를 범위로 보여 줍니다.</p>
+                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground"><b className="text-foreground">계산 방법:</b> 고른 대표 매장마다 손님 유형별로 정해 둔 반응 크기(가정)에 이 재료 유형({cur.type})의 반응 곡선을 곱해, 출시 후 28일 동안 날마다 방문이 평소보다 몇 % 늘지 구하고 평균을 냅니다. 매출 순증은 그렇게 늘어난 방문 수를 28일 더한 뒤 객단가와 (1 − 잠식률)을 곱한 값이에요. 유형별 평균에 유형 가중치(서울 후보 매장 수 비중, 가정)를 곱해 전국 평균으로 바꾸고, 실제 사례가 없어 계산값의 60~140%를 범위로 보여 줍니다.</p>
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-xs text-muted-foreground">
                     <label className="flex items-center gap-1.5">객단가 <input type="number" min={1000} step={500} value={price} onChange={(e) => setPrice(Math.max(1000, Number(e.target.value) || 0))} className="num h-8 w-24 rounded-md border border-input bg-background px-2 text-right text-foreground" />원</label>
                     <label className="flex items-center gap-1.5" title="신제품을 사느라 기존 맛 매출이 줄어드는 비율">잠식률 <input type="number" min={0} max={90} step={5} value={cannibal} onChange={(e) => setCannibal(Math.min(90, Math.max(0, Number(e.target.value) || 0)))} className="num h-8 w-16 rounded-md border border-input bg-background px-2 text-right text-foreground" />%</label>
-                    <span>매출 순증 = 추가 방문 × 객단가 × (1 − 잠식률)</span>
+                    <span>매출 순증 = 추가 방문 × 객단가 × (1 − 잠식률), 유형 가중 평균</span>
+                    <span className="basis-full">유형 가중치: {ex.rows.map((r) => `${r.type} ${Math.round(r.weight * 100)}%`).join(' · ')}</span>
                   </div>
                 </div>
               </div>
             </details>
 
             <div className="mt-4 flex flex-wrap items-center gap-2.5">
-              <div role="group" aria-label="선출시 매장 수" className="flex h-11 items-center gap-2 rounded-full border border-border px-1.5">
-                <button type="button" aria-label="매장 줄이기" disabled={sel.length <= 1} onClick={() => setSel(sel.slice(0, -1))} className={stepBtn}><Minus className="size-4" /></button>
-                <span className="num min-w-14 text-center text-xs font-bold">{sel.length}개 매장</span>
-                <button type="button" aria-label="매장 늘리기" disabled={sel.length >= stores.length} onClick={addStore} className={stepBtn}><Plus className="size-4" /></button>
-              </div>
               <Button className="h-11" disabled={!sel.length || full}
                 onClick={() => {
                   const id = launchId(cur.kw)
                   setAppr(launchKey(cur.kw), { kind: 'launch', kw: cur.kw, concept: cur.concept, id, type: cur.type, launch: cur.kind === '콜라보' ? '콜라보' : '새로운 맛', prob: cur.prob, detected: cur.detected, stores: sel, price, cannibal: cannibal / 100, exp: { visitLo: ex.visitLo, visitHi: ex.visitHi, salesLo: ex.salesLo, salesHi: ex.salesHi } })
                   go('react', { launch: id, from: 'launch', open: 1 })
-                }}>시식 테스트 요청</Button>
+                }}>대표 매장 선출시 요청</Button>
               <button type="button" aria-pressed={liked} aria-label={`${title} 찜하기`} onClick={onLike} className={cn('grid size-11 place-items-center rounded-full border border-border hover:bg-muted active:translate-y-px', FR)}><Heart className={cn('size-4', liked && 'fill-current text-primary')} /></button>
               <Button variant="ghost" className="ml-auto h-11 text-muted-foreground" onClick={() => setAppr(skipKey(cur.kw), { kind: 'skip', kw: cur.kw, prob: cur.prob, type: cur.type })}>출시 안 함</Button>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{full ? <span className="text-primary">매장 반응 화면에서 한 번에 볼 수 있는 맛이 가득 찼어요. 끝난 선출시를 정리하면 다시 요청할 수 있어요</span> : `요청하면 고른 매장에 선출시로 기록되고, ${H}주 뒤 매장 반응으로 이어집니다.`}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{full ? <span className="text-primary">매장 반응 화면에서 한 번에 볼 수 있는 맛이 가득 찼어요. 끝난 선출시를 정리하면 다시 요청할 수 있어요</span> : `요청하면 대표 매장에 선출시로 기록되고, ${H}주 뒤 매장 반응에서 전국 평균을 미리 읽습니다.`}</p>
           </>
         )}
       </div>

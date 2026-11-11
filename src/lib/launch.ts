@@ -1,5 +1,5 @@
 /* 출시 결정으로 생기는 선출시 맛, 결정 시점의 기대효과, 피드백의 베타 갱신 */
-import { build, hash, mean, rng, SCENARIOS, SCN_AMP, TYPE_SPEC, unit, type Data, type Kind, type Scenario, type ShapeName, type StoreType } from './data'
+import { build, hash, mean, rng, SCENARIOS, SCN_AMP, TYPE_SPEC, TYPE_WEIGHT, TYPES, unit, type Data, type Kind, type Scenario, type ShapeName, type StoreType } from './data'
 import { launchesOf, type Approvals } from './derived'
 
 /** 개발 13주 뒤 선출시가 시작됐다고 가정할 때 화면이 열리는 시점 (출시 후 경과일) */
@@ -41,30 +41,42 @@ export function dataFor(scn: Scenario): Data {
 export const ASSUME = { price: 9000, cannibal: 0.2, width: [0.6, 1.4] as const }
 const baseStores = () => dataFor(SCENARIOS.a).stores
 
-/** 선택한 매장에서 4주 동안(D+1~D+28) 기대하는 대조 대비 방문 증가와 매출 순증.
+/** 선택한 대표 매장에서 4주 동안(D+1~D+28) 기대하는 대조 대비 방문 증가와 매장당 매출 순증.
+ *  유형별로 평균을 낸 뒤 유형 가중치(서울 후보 매장 수 비중)를 곱해 전국 평균으로 바꾼다.
  *  사례가 없어 상권 유형별 가정 진폭을 쓴다. 모델이 아니라 기준 범위이고, 반응이 며칠 이어질지는 예측하지 않는다. */
 export function expectedEffect(type: string, storeIds: string[], price = ASSUME.price, cannibal = ASSUME.cannibal) {
   const kind = kindOfType(type)
   const sts = baseStores().filter((s) => storeIds.includes(s.id))
-  if (!sts.length) return { visitLo: 0, visitHi: 0, salesLo: 0, salesHi: 0, n: 0 }
-  let visit = 0, extra = 0
-  sts.forEach((s) => {
-    const sp = TYPE_SPEC[s.type as StoreType]
+  const empty = { visitLo: 0, visitHi: 0, salesLo: 0, salesHi: 0, n: 0, covered: 0, rows: [] as { type: StoreType; n: number; weight: number; visit: number }[] }
+  if (!sts.length) return empty
+  const rows: typeof empty.rows = []
+  let visit = 0, sales = 0, wsum = 0
+  TYPES.forEach((t) => {
+    const list = sts.filter((s) => s.type === t)
+    if (!list.length) return
+    const sp = TYPE_SPEC[t]
     const wk = mean(sp.wk)
-    let sumR = 0, sumV = 0
-    for (let d = 1; d <= 28; d++) { const r = SCN_AMP[kind] * sp.amp * unit(kind, d, sp.speed); sumR += r; sumV += s.base * wk * r }
-    visit += sumR / 28
-    extra += sumV
+    let v = 0, extra = 0
+    list.forEach((s) => {
+      let sumR = 0, sumV = 0
+      for (let d = 1; d <= 28; d++) { const r = SCN_AMP[kind] * sp.amp * unit(kind, d, sp.speed); sumR += r; sumV += s.base * wk * r }
+      v += sumR / 28
+      extra += sumV
+    })
+    const w = TYPE_WEIGHT[t]
+    rows.push({ type: t, n: list.length, weight: w, visit: v / list.length })
+    visit += (w * v) / list.length
+    sales += (w * extra * price * (1 - cannibal)) / list.length / 10000
+    wsum += w
   })
-  const v = visit / sts.length
-  const sales = (extra * price * (1 - cannibal)) / 10000
   const [lo, hi] = ASSUME.width
-  return { visitLo: v * lo, visitHi: v * hi, salesLo: sales * lo, salesHi: sales * hi, n: sts.length }
+  visit /= wsum; sales /= wsum
+  return { visitLo: visit * lo, visitHi: visit * hi, salesLo: sales * lo, salesHi: sales * hi, n: sts.length, covered: wsum, rows }
 }
 
-/** 상권 5곳을 고루 덮는 기본 추천: 상권마다 1곳 */
+/** 기본 선출시 매장: 손님 유형마다 대표 3곳, 총 15곳 */
 export function recommendedStores(): string[] {
-  return dataFor(SCENARIOS.a).stores.filter((s) => s.pilot).map((s) => s.id)
+  return dataFor(SCENARIOS.a).stores.filter((s) => s.place.rep).map((s) => s.id)
 }
 
 /* ---------- 피드백: 맞음/틀림을 베타 분포로 ---------- */

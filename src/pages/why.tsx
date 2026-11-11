@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { CartesianGrid, ReferenceArea, ReferenceLine, Scatter, ScatterChart, XAxis, YAxis, ZAxis } from 'recharts'
 import { Pause, Play, Sparkles } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
-import { DIAG, diagnose, shortName, TYPES } from '@/lib/data'
+import { DIAG, diagnose, liveStores, shortName, TYPES } from '@/lib/data'
 import { storeStatuses } from '@/lib/derived'
 import { hhmm, pct } from '@/lib/format'
 import { interpret, mergeNewZone, metrics, simInputFor, simulate, WINDOWS, ZONES, type FloorMetrics, type Reading, type Track, type ZoneId } from '@/lib/floor'
@@ -167,11 +167,11 @@ export default function Why() {
   const tab = q.tab === 'floor' || (q.store && q.tab !== 'dist') ? 'floor' : 'dist'
   const status = useMemo(() => storeStatuses(d, D), [d, D])
   const sev = { stockout: 0, check: 1, drop: 2, surge: 3, normal: 4 } as const
-  const list = useMemo(() => d.stores.slice().sort((a, b) => sev[status[a.id].key] - sev[status[b.id].key] || b.series[D].react - a.series[D].react), [d, D, status])
+  const list = useMemo(() => liveStores(d).sort((a, b) => sev[status[a.id].key] - sev[status[b.id].key] || b.series[D].react - a.series[D].react), [d, D, status])
   const [lf, setLf] = useState<'all' | 'attn'>('attn')
   const shownList = list.filter((s) => lf === 'all' || status[s.id].key !== 'normal')
-  const storeId = d.stores.some((s) => s.id === q.store) ? q.store : list[0].id
-  const store = d.stores.find((s) => s.id === storeId)!
+  const storeId = list.some((s) => s.id === q.store) ? q.store : list[0].id
+  const store = list.find((s) => s.id === storeId)!
   const win = Math.max(0, Math.min(4, Number.isNaN(parseInt(q.win, 10)) ? 3 : parseInt(q.win, 10)))
   const mode: FloorMode = q.view === 'flow' || q.view === 'heat' ? q.view : 'tracks'
   const period = q.period === 'before' ? 'before' : 'after'
