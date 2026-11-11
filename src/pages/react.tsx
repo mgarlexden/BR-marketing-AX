@@ -14,7 +14,7 @@ import { EmbeddedCtx, HowTo, TabTitle } from '@/components/page'
 import { EvidenceBadge } from '@/components/evidence'
 import { Sparkline } from '@/components/charts/mini'
 import { SourceBadge, type Source } from '@/components/source-badge'
-import { FitLine } from '@/components/fit-line'
+import { FitLine, josa, ro } from '@/components/fit-line'
 import { NationalCard } from '@/components/national-card'
 import { Chip } from '@/components/radar'
 import { cn } from '@/lib/utils'
@@ -28,8 +28,9 @@ const BigHeading = ({ children }: { children: React.ReactNode }) => <h3 classNam
 const OUT_ALERT = 3
 
 /* ---------- 지표 (대표 매장의 오늘 값. 지표를 펼치면 선출시·대조 매장별로 본다) ---------- */
-type MetricId = 'visit' | 'zone' | 'sold' | 'share' | 'net' | 'out'
-interface StoreVal { st: Store; vis: number; exp: number; zone: number; sales: number; orders: number; out: boolean; ctrl: number }
+type MetricId = 'visit' | 'zone' | 'sold' | 'share' | 'net' | 'out' | 'flow'
+/** buy, buy0: 신제품 구역을 지난 손님 중 계산대까지 간 비율 (지금, 출시 전 같은 매장) */
+interface StoreVal { st: Store; vis: number; exp: number; zone: number; sales: number; orders: number; out: boolean; ctrl: number; buy: number; buy0: number }
 interface Metric { id: MetricId; label: string; value: string; note: string; tone?: 'good' | 'bad'; sources: Source[]; per: (s: StoreVal) => { text: string; tone?: 'good' | 'bad' }; /** 고른 매장이 모두 미출시라 값이 없음 */ none?: boolean }
 type Group = 'pilot' | 'general' | 'all'
 const GROUP_LABEL: Record<Group, string> = { pilot: '대표 매장', general: '대조 매장(가상)', all: '전체' }
@@ -46,9 +47,10 @@ function GroupChips({ value, onChange, counts, after }: { value: Group | null; o
 /** 대조 매장은 신제품을 팔지 않으므로 방문만 본다. 방문은 출시가 없을 때의 값(대조)을 쓴다 */
 function storeVal(st: Store, D: number): StoreVal {
   const p = st.series[D]
-  if (!st.pilot) return { st, vis: p.ctrlVis, exp: p.exp, zone: 0, sales: 0, orders: 0, out: false, ctrl: p.ctrlVis }
+  if (!st.pilot) return { st, vis: p.ctrlVis, exp: p.exp, zone: 0, sales: 0, orders: 0, out: false, ctrl: p.ctrlVis, buy: 0, buy0: 0 }
   const m = metrics(simulate(simInputFor(st, p, 0, false)))
-  return { st, vis: p.visits, exp: p.exp, zone: p.visits * m.popRate, sales: p.sales, orders: p.orders, out: p.out, ctrl: p.ctrlVis }
+  const m0 = metrics(simulate(simInputFor(st, p, 0, true)))
+  return { st, vis: p.visits, exp: p.exp, zone: p.visits * m.popRate, sales: p.sales, orders: p.orders, out: p.out, ctrl: p.ctrlVis, buy: m.popBuyRate, buy0: m0.popBuyRate }
 }
 
 
@@ -59,6 +61,8 @@ function metricList(d: Data, D: number, rows: StoreVal[], grp: Group, one = fals
   const pil = rows.filter((r) => r.st.pilot)
   const pvis = sum('vis', pil), zone = sum('zone', pil), sales = sum('sales', pil), orders = sum('orders', pil)
   const out = pil.filter((r) => r.out).length
+  const avg = (k: 'buy' | 'buy0') => (pil.length ? pil.reduce((a, r) => a + r[k], 0) / pil.length : 0)
+  const buy = avg('buy'), buy0 = avg('buy0')
   // 매장 한 곳을 고르면 그 매장의 방문을 같은 매장의 미출시 가정 방문과 비교한다
   const net = one ? vis / exp - sum('ctrl') / exp : d.netAgg[D]
   const only = grp === 'all' ? ' (대표 매장만)' : ''
@@ -68,36 +72,37 @@ function metricList(d: Data, D: number, rows: StoreVal[], grp: Group, one = fals
     { id: 'sold', label: '신제품 구매', value: `${num(sales)}개`, note: `방문 100명당 ${Math.round((sales / Math.max(1, pvis)) * 100)}개${only}`, sources: ['br'], per: (s) => ({ text: `${num(s.sales)}개 (100명당 ${Math.round((s.sales / Math.max(1, s.vis)) * 100)}개)` }) },
     { id: 'share', label: '신제품 비중', value: `${Math.round((sales / Math.max(1, orders)) * 100)}%`, note: `전체 주문 ${num(orders)}건 중${only}`, sources: ['br'], per: (s) => ({ text: `${Math.round((s.sales / Math.max(1, s.orders)) * 100)}%` }) },
     { id: 'net', label: '미출시 매장 대비 순효과', value: pp(net), note: one ? '이 매장 − 같은 매장 미출시 가정' : '선출시 − 미출시 매장', tone: net >= 0 ? 'good' : 'bad', sources: ['vision', 'assume'], per: (s) => { const v = s.vis / s.exp - s.ctrl / s.exp; return { text: pp(v), tone: v >= 0 ? 'good' : 'bad' } } },
+    { id: 'flow', label: '매장 동선과 전환', value: `${Math.round(buy * 100)}%`, note: `신제품 구역에 들른 손님 중 계산대까지, 출시 전 ${Math.round(buy0 * 100)}%${only}`, tone: buy >= buy0 - 0.05 ? undefined : 'bad', sources: ['vision', 'assume'], per: (s) => ({ text: `${Math.round(s.buy * 100)}% (출시 전 ${Math.round(s.buy0 * 100)}%)`, tone: s.buy >= s.buy0 - 0.05 ? undefined : 'bad' }) },
     { id: 'out', label: '품절 의심', value: one ? (out ? '있음' : '없음') : `${out}곳`, note: `${out ? '재고 확인 필요' : '없음'}${only}`, tone: out ? 'bad' : undefined, sources: ['br'], per: (s) => ({ text: s.out ? '품절 의심' : '정상', tone: s.out ? 'bad' : undefined }) },
   ]
   if (grp === 'general') return list.map((m) => (m.id === 'visit' ? { ...m, note: `출시가 없을 때 방문, 평소 예상 ${num(exp)}명보다 ${pct(vis / exp - 1)}` } : { ...m, value: '-', note: '미출시 매장이라 없음', tone: undefined, none: true }))
   return list
 }
 
-/* ---------- 요약 문장: 한 줄에 공백 빼고 50자 안쪽, 쉼표로 끊고 앞 문장과 겹치는 말은 다시 쓰지 않는다 ---------- */
+/* ---------- 요약 문장: 한 줄에 공백 빼고 50자 안쪽, 쉼표로 끊고 앞 문장과 겹치는 말은 다시 쓰지 않는다
+ * 지표 수치는 2개까지. 판정마다 그 판정이 필요한 이유를 가장 잘 보여 주는 지표를 고른다
+ * 확대: 지금 이런 상황이니 확대해야 해요 / 보완: 이런 상황이라, 이런 곳을 보완한 뒤 확대해야 해요
+ * 유지: 아직 확대할 때가 아니라는 지표를 보여 주고 더 관찰해요 / 정리: 접어야 하는 이유를 보여 주고 정리해요 ---------- */
 type V = ReturnType<typeof verdict>
 type Gap = { n: number; k: number; scope: string; conv: number; dwell: number }
 const abs = (x: number) => `${Math.abs(Math.round(x * 100))}%`
 
 function headlineOf(v: V, g: Gap, D: number) {
   const a = pct(v.a)
-  if (v.dir === 'fix') return `손님이 평소보다 평균 ${a} 더 모이지만, ${g.scope} 매장 ${g.k}곳은 구매 전환이 다른 곳보다 ${abs(g.conv)} 낮아요`
-  if (v.dir === 'expand') return v.slope >= 0 ? `손님이 평소보다 평균 ${a} 더 모이고, 증가 폭은 최근 3일간 ${pp(v.slope)} 커졌어요` : `손님이 평소보다 평균 ${a} 더 모이고, 최고치의 ${Math.round((v.a / v.peak) * 100)}%를 유지해요`
-  if (v.dir === 'wrap') return `방문 증가율이 최고 ${pct(v.peak)}에서 ${a}까지 식었어요`
-  if (v.dir === 'wait') return `출시 ${D + 1}일째라, 아직 판단할 근거가 부족해요`
-  return `손님이 평소보다 평균 ${a} 더 모이고, 최근 3일 변화는 ${pp(v.slope)}예요`
-}
-function adviceOf(v: V, pilotGap: Gap | null) {
-  if (v.dir === 'fix') return `정식 출시 전 보완이 필요해요. 놓친 판매가 하루 약 ${num(v.lostUnits)}개로 기대 판매의 ${Math.round(v.lostShare * 100)}%예요`
-  if (v.dir === 'expand') return `정식 출시 확대가 필요해요${pilotGap ? `. 다만 대표 매장 ${pilotGap.k}곳은 구매 전환이 다른 곳보다 ${abs(pilotGap.conv)} 낮아요` : ''}`
-  if (v.dir === 'wrap') return '정식 출시 전 정리가 필요해요'
-  if (v.dir === 'wait') return '아직 방향을 정하지 않아요'
-  return '지금 상태로 더 지켜봐야 해요'
-}
-/** 첫 문장만 굵게: 무엇을 해야 하는지가 먼저 보이게 */
-function BoldFirst({ text }: { text: string }) {
-  const i = text.indexOf('. ')
-  return i < 0 ? <b className="font-bold text-foreground">{text}</b> : <><b className="font-bold text-foreground">{text.slice(0, i + 1)}</b>{text.slice(i + 1)}</>
+  if (v.dir === 'wait') return `출시 ${D + 1}일째라, 아직 판단하기 일러요`
+  if (v.dir === 'expand') return v.slope >= 0
+    ? `방문이 평소보다 ${a} 늘고 최근 3일 ${pp(v.slope)} 더 올랐으니, 확대해야 해요`
+    : `방문이 평소보다 ${a} 늘고 정점의 ${Math.round((v.a / v.peak) * 100)}%를 지키니, 확대해야 해요`
+  if (v.dir === 'fix') {
+    // 체류는 길었는데 안 샀으면 가격·시식, 체류도 짧으면 진열·안내 문제로 본다 (구매 점검 매장의 진단과 같은 기준)
+    const what = g.dwell > 0.2 ? '가격표와 시식' : '진열 위치와 안내 문구'
+    return `구매 점검 매장 ${g.k}곳의 구매 전환이 ${abs(g.conv)} 낮아서, ${josa(what, '을', '를')} 보완한 뒤 확대해야 해요`
+  }
+  if (v.dir === 'wrap') return `방문 증가가 정점 ${pct(v.peak)}에서 ${ro(a)} 식었으니, 전국으로 확대하지 않고 정리해요`
+  // 유지: 확대 기준(+25%)에 못 미쳤거나, 기준은 넘었지만 정점에서 내려오는 중
+  return v.a < 0.25
+    ? `방문 증가가 ${ro(a)} 확대 기준 +25%에 못 미치니, 더 관찰해야 해요`
+    : `방문 증가가 정점 ${pct(v.peak)}에서 ${ro(a)} 내려와서, 더 관찰해야 해요`
 }
 
 /** 지표를 누르면 바로 아래에 위에서 고른 범위의 매장마다 값이 열린다 */
@@ -135,10 +140,7 @@ function Detail({ onDecide, onClose, deciding }: { onDecide: () => void; onClose
     const flag = diagnose(d, D).rows.filter((r) => r.zone === 'flag')
     const pil = flag.filter((r) => r.st.pilot)
     const gapOf = (rows: typeof flag, n: number, scope: string): Gap => ({ n, k: rows.length, scope, conv: mean(rows.map((r) => r.y)), dwell: mean(rows.map((r) => r.dwell)) })
-    return {
-      g: pil.length ? gapOf(pil, pilots, '대표') : gapOf(flag, d.stores.length, '전체'),
-      pilotGap: pil.length ? gapOf(pil, pilots, '대표') : null,
-    }
+    return { g: gapOf(flag, pilots, '대표') }
   }, [d, D, pilots])
   // 처음 보이는 지표는 대표 매장 합계라 대표 매장 칩을 고른 상태로 시작한다. 고른 칩을 다시 눌러도 풀리지 않는다
   const [chip, setChip] = useState<Group | null>('pilot')
@@ -152,9 +154,7 @@ function Detail({ onDecide, onClose, deciding }: { onDecide: () => void; onClose
   const list = useMemo(() => metricList(d, D, rows, one ? (one.st.pilot ? 'pilot' : 'general') : grp, !!one), [d, D, rows, one, grp]) // eslint-disable-line react-hooks/exhaustive-deps
   const pickGroup = (g: Group | null) => { setChip(g); setPs(''); setMetric(null) }
   const [metric, setMetric] = useState<MetricId | null>(null)
-  const [floor, setFloor] = useState(false)
   const open = list.find((m) => m.id === metric)
-  const advice = adviceOf(v, info.pilotGap)
   const day = d.days[D].date
   return (
     <div className="border-t border-border px-1 pb-6 pt-5 sm:px-3">
@@ -168,8 +168,7 @@ function Detail({ onDecide, onClose, deciding }: { onDecide: () => void; onClose
         <div className="min-w-0 flex-1">
           <h3 className="break-keep font-extrabold leading-[1.25] tracking-tight"><FitLine max={26} min={17} text={headlineOf(v, info.g, D)} /></h3>
           <ul className="mt-3 list-disc space-y-0.5 pl-5 text-sm text-muted-foreground marker:text-muted-foreground/60">
-            <li><FitLine max={14} min={12} text={advice}><BoldFirst text={advice} /></FitLine></li>
-            <li><FitLine max={14} min={12} text={`${v.days}일동안의 데이터에요`} /></li>
+            <li><FitLine max={14} min={12} text={`${v.days}일 동안의 데이터예요`} /></li>
           </ul>
         </div>
         <p className="text-right"><span className="block text-[11px] text-muted-foreground">판정</span><span className="block text-xl font-extrabold leading-tight text-primary">{DIR_LABEL[v.dir]}</span></p>
@@ -210,12 +209,20 @@ function Detail({ onDecide, onClose, deciding }: { onDecide: () => void; onClose
           )
         })}
       </ul>
-      {open && !one && <StoreBreakdown m={open} rows={inGrp} grp={grp} onClose={() => setMetric(null)} />}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <button type="button" aria-expanded={floor} onClick={() => setFloor(!floor)} className={cn('text-sm font-semibold text-primary underline-offset-4 hover:underline', FR)}>{floor ? '매장 동선 접기' : '매장 동선과 전환 자세히 보기'}</button>
+      {open && !one && open.id !== 'flow' && <StoreBreakdown m={open} rows={inGrp} grp={grp} onClose={() => setMetric(null)} />}
+      {open && !one && open.id === 'flow' && (
+        <section aria-label="매장 동선과 전환" className="mt-3 border-y border-border py-4">
+          <div className="mb-3 flex items-center gap-2">
+            <h4 className="mr-1 text-base font-extrabold tracking-tight">매장 동선과 전환</h4>
+            <span className="text-xs text-muted-foreground">대표 매장 {pilots}곳</span>
+            <button type="button" onClick={() => setMetric(null)} aria-label="매장 동선 닫기" className={cn('ml-auto grid size-8 place-items-center rounded-full hover:bg-muted active:translate-y-px', FR)}><X className="size-4" /></button>
+          </div>
+          <EmbeddedCtx.Provider value><Why /></EmbeddedCtx.Provider>
+        </section>
+      )}
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
         <Button className="h-11 px-6" onClick={deciding ? onClose : onDecide} disabled={v.dir === 'wait'}>{deciding ? '판정 기록 닫기' : '판정 기록하기'}</Button>
       </div>
-      {floor && <div className="mt-3"><EmbeddedCtx.Provider value><Why /></EmbeddedCtx.Provider></div>}
       {deciding && <JudgeSection onClose={onClose} />}
     </div>
   )
