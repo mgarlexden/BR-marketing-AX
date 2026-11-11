@@ -36,7 +36,7 @@ const GROUP_LABEL: Record<Group, string> = { pilot: '선출시 매장', general:
 function GroupChips({ value, onChange, counts, after }: { value: Group | null; onChange: (g: Group | null) => void; counts: Record<Group, number>; /** 고른 칩 바로 옆에 붙일 것 (전체에는 붙이지 않음) */ after?: React.ReactNode }) {
   return <>{(['all', 'pilot', 'general'] as Group[]).map((g) => (
     <span key={g} className="flex items-center gap-1.5">
-      <Chip on={value === g} onClick={() => onChange(value === g ? null : g)}>{GROUP_LABEL[g]} {counts[g]}</Chip>
+      <Chip on={value === g} onClick={() => onChange(g)}>{GROUP_LABEL[g]} {counts[g]}</Chip>
       {value === g && g !== 'all' && after}
     </span>
   ))}</>
@@ -139,8 +139,8 @@ function Detail({ onDecide, onClose, deciding }: { onDecide: () => void; onClose
       pilotGap: pil.length ? gapOf(pil, pilots, '선출시') : null,
     }
   }, [d, D, pilots])
-  // 처음에는 칩을 고르지 않은 상태로 선출시 매장 합계를 보여 준다
-  const [chip, setChip] = useState<Group | null>(null)
+  // 처음 보이는 지표는 선출시 매장 합계라 선출시 매장 칩을 고른 상태로 시작한다. 고른 칩을 다시 눌러도 풀리지 않는다
+  const [chip, setChip] = useState<Group | null>('pilot')
   const grp: Group = chip ?? 'pilot'
   const [ps, setPs] = useState('')
   const all = useMemo(() => d.stores.map((st) => storeVal(st, D)), [d, D])
