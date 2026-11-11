@@ -16,7 +16,7 @@ import { Sparkline, ZBar } from '@/components/charts/mini'
 import { EvidenceBadge } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 
-const COLORS: Record<StoreType, string> = { '대학가': 'var(--chart-1)', '오피스': 'var(--chart-2)', '주거': 'var(--chart-3)', '역세권': 'var(--chart-4)', '관광': 'var(--chart-5)' }
+const COLORS: Record<StoreType, string> = { '2030': 'var(--chart-1)', '4050 가족': 'var(--chart-2)', '관광·나들이': 'var(--chart-3)', '직장인': 'var(--chart-4)', '혼합': 'var(--chart-5)' }
 type SortKey = 'name' | 'react' | 'visits' | 'conv' | 'rank' | 'share'
 const STATUS_GROUP = { all: null, attention: ['check', 'stockout'], move: ['surge', 'drop'], normal: ['normal'] } as const
 
@@ -120,7 +120,7 @@ export default function Where() {
               <TBody>
                 {shown.map((r) => (
                   <TR key={r.st.id} className="hover:bg-accent/40">
-                    <TD className="whitespace-nowrap"><span className="font-semibold">{r.st.name}</span><span className="block text-[11px] leading-tight text-muted-foreground" title="유동인구는 행정동 하루 평균 추정">{r.st.place.gu} {r.st.place.dong} · 유동 {Math.round(r.st.place.flow / 1000)}천명{r.st.place.direct ? ' · 직영' : ''}</span></TD>
+                    <TD className="whitespace-nowrap"><span className="font-semibold">{r.st.name}</span><span className="block text-[11px] leading-tight text-muted-foreground" title="손님 유형을 정한 기준 지역">{r.st.place.rep ? `${r.st.place.gu} ${r.st.place.dong}` : '대조 매장(가상)'}{r.st.place.rep ? (r.st.place.direct ? ' · 직영' : ' · 가맹') : ''}{r.st.place.license === '인허가 없음' ? ' · 영업 확인 필요' : ''}</span></TD>
                     <TD className="whitespace-nowrap">{r.st.pilot ? <Pill tone="primary">선출시</Pill> : <span className="text-xs text-muted-foreground">대조 대상</span>}</TD>
                     <TD className="whitespace-nowrap"><ZBar v={r.react} range={maxAbs} /><b className="num">{pct(r.react)}</b></TD>
                     <TD className="num text-right">{num(r.p.visits)}<span className="text-muted-foreground"> / {num(r.p.exp)}</span></TD>
@@ -138,7 +138,7 @@ export default function Where() {
         </Card>
       )}
       <HowTo>
-        <p>반응 = 오늘 방문 ÷ 평소 예상 − 1 (평소는 출시 전 14일 평균에 요일과 기온을 맞춘 값). 구매 전환 = 존 방문 100명당 신제품 판매 수이고 오른쪽 값은 전 매장 중앙값 대비입니다. 순위는 최근 3일 평균 반응 기준이며, 3일 전과 비교해 5계단 이상 움직이고 전체 흐름과 다르게 달라진 매장만 급변으로 표시합니다. 구매 점검은 방문이 15% 이상 늘었는데 전환이 중앙값보다 25% 넘게 낮은 매장입니다. 선출시는 상권마다 먼저 출시한 1곳이고, 대조 대상은 같은 기간 미출시로 비교하는 매장입니다. 이 표의 값은 20곳 모두 출시된 뒤 모습이며, 미출시 대조값은 출시 현황의 선출시 효과 카드에서 봅니다.</p>
+        <p>반응 = 오늘 방문 ÷ 평소 예상 − 1 (평소는 출시 전 14일 평균에 요일과 기온을 맞춘 값). 구매 전환 = 존 방문 100명당 신제품 판매 수이고 오른쪽 값은 전 매장 중앙값 대비입니다. 순위는 최근 3일 평균 반응 기준이며, 3일 전과 비교해 5계단 이상 움직이고 전체 흐름과 다르게 달라진 매장만 급변으로 표시합니다. 구매 점검은 방문이 15% 이상 늘었는데 전환이 중앙값보다 25% 넘게 낮은 매장입니다. 선출시는 손님 유형마다 먼저 출시한 대표 매장 3곳이고, 대조 대상은 같은 기간 미출시로 비교하는 매장입니다. 이 표의 값은 35곳 모두 출시된 뒤 모습이며, 미출시 대조값은 출시 현황의 선출시 효과 카드에서 봅니다.</p>
       </HowTo>
     </div>
   )

@@ -14,7 +14,8 @@ import { DirChip, Pill } from '@/components/status'
 import { Sparkline, ZBar } from '@/components/charts/mini'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { EvidenceBadge } from '@/components/evidence'
-import { DAYS } from '@/lib/data'
+import { DAYS, nationalEstimate } from '@/lib/data'
+import { TYPE_COUNT } from '@/lib/stores'
 
 const DIR_COLOR: Record<Dir, string> = { expand: 'var(--dir-expand)', maintain: 'var(--dir-maintain)', fix: 'var(--dir-fix)', wrap: 'var(--dir-wrap)', wait: 'var(--border)' }
 
@@ -33,7 +34,7 @@ export function PilotCard() {
   const pp2 = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%p`
   return (
     <Card id="pilot-effect" className="mb-4 scroll-mt-20">
-      <CardHeader title={`선출시 효과: 선출시 ${nP}곳 vs 대조 ${d.stores.length - nP}곳`} right={<span className="flex items-center gap-1.5 text-xs text-muted-foreground">대조는 같은 기간 미출시로 가정<EvidenceBadge kind="sim" /></span>} />
+      <CardHeader title={`대표 매장 선출시 효과: 대표 ${nP}곳 vs 대조 ${d.stores.length - nP}곳`} right={<span className="flex items-center gap-1.5 text-xs text-muted-foreground">대조는 같은 기간 미출시로 가정<EvidenceBadge kind="sim" /></span>} />
       <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
         <ChartContainer config={pilotCfg} className="aspect-auto h-52 w-full">
           <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -52,9 +53,47 @@ export function PilotCard() {
             <p className="num text-3xl font-bold tracking-tighter">{pp2(net)}</p>
             <p className="text-xs text-muted-foreground">최근 3일 평균 <b className="num text-foreground">{pp2(net3)}</b></p>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">날씨·요일 영향이 두 그룹에 똑같이 들어가므로 차이만 신제품 효과의 후보로 봅니다. 선출시 매장은 본사가 고르는 매장이라 이 차이를 가맹점 전체로 일반화하지 않습니다. 아래 20곳 합산은 확대 후 모습입니다.</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">날씨·요일 영향이 두 그룹에 똑같이 들어가므로 차이만 신제품 효과의 후보로 봅니다. 대표 매장은 유형마다 3곳이라, 이 차이를 전국으로 바꾼 값은 위의 전국 평균 예측 카드에서 유형 가중치로 계산합니다. 아래 35곳 합산은 확대 후 모습입니다.</p>
         </div>
       </div>
+    </Card>
+  )
+}
+
+const spp = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%p`
+
+/** 대표 매장의 유형별 순효과에 유형 가중치(서울 후보 매장 수 비중)를 곱해 전국 평균을 미리 읽는다 */
+export function NationalCard() {
+  const { data: d, day: D } = useApp()
+  const est = useMemo(() => nationalEstimate(d, D), [d, D])
+  const thin = est.rows.filter((r) => r.n > 0 && r.n / TYPE_COUNT[r.type] < 0.05 && r.weight >= 0.15).map((r) => r.type)
+  return (
+    <Card id="national-estimate" className="mb-4 scroll-mt-20">
+      <CardHeader title={`전국 평균 예측: 대표 ${est.n}곳 → 손님 유형별 가중`} right={<span className="flex items-center gap-1.5 text-xs text-muted-foreground">대표 매장 반응으로 전국을 미리 읽음<EvidenceBadge kind="sim" /></span>} />
+      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">전국 평균 순효과 (대조 대비)</p>
+          <p className="num text-3xl font-bold tracking-tighter">{spp(est.net)}</p>
+          <p className="text-xs text-muted-foreground">대표 매장 사이 범위 <b className="num text-foreground">{spp(est.lo)} ~ {spp(est.hi)}</b></p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">유형별 순효과 × 유형 가중치의 합입니다. 가중치는 서울 후보 매장 수 비중을 쓴 가정이고, 전국 확대 뒤 실제 POS와 비교해 맞춥니다.</p>
+        </div>
+        <Table>
+          <THead><TR><TH>손님 유형</TH><TH className="text-right">대표</TH><TH className="text-right">가중치</TH><TH className="text-right">대표가 덮는 비율</TH><TH className="text-right">순효과</TH><TH className="text-right">대표 사이 범위</TH></TR></THead>
+          <TBody>
+            {est.rows.map((r) => (
+              <TR key={r.type}>
+                <TD className="font-semibold">{r.type}</TD>
+                <TD className="num text-right">{r.n}곳</TD>
+                <TD className="num text-right">{Math.round(r.weight * 100)}%</TD>
+                <TD className="num text-right">{Math.round((r.n / TYPE_COUNT[r.type]) * 100)}%</TD>
+                <TD className="num text-right font-semibold">{r.n ? spp(r.net) : '-'}</TD>
+                <TD className="num text-right text-muted-foreground">{r.n ? `${spp(r.lo)} ~ ${spp(r.hi)}` : '-'}</TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      </div>
+      {thin.length > 0 && <p className="mt-3 text-xs text-muted-foreground">{thin.join(', ')} 유형은 가중치가 큰데 대표가 3곳뿐이라 범위가 더 넓을 수 있어요.</p>}
     </Card>
   )
 }

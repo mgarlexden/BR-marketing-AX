@@ -12,7 +12,7 @@ import { DirChip } from '@/components/status'
 import { EmptyState, EmbeddedCtx, HowTo, TabTitle } from '@/components/page'
 import { EvidenceBadge, type Evidence } from '@/components/evidence'
 import { cn } from '@/lib/utils'
-import Brief, { PilotCard } from './brief'
+import Brief, { NationalCard, PilotCard } from './brief'
 import Where from './where'
 import Why from './why'
 import { DirCard, FixCard } from './decisions'
@@ -111,7 +111,7 @@ function SourceBadge({ source }: { source: Source }) {
 const ORDER = ['visit', 'net', 'zone', 'sold', 'share', 'out']
 const RESET = { grp: '', st: '', sort: '', tab: '', q: '', store: '', view: '' }
 
-/** 선출시 매장의 오늘 숫자. 매장별 필터로 한 곳만 볼 수 있고, 숫자를 누르면 그 숫자의 상세가 아래에 열린다 */
+/** 대표(선출시) 매장의 오늘 숫자. 매장별 필터로 한 곳만 볼 수 있고, 숫자를 누르면 그 숫자의 상세가 아래에 열린다 */
 function TodayPanel() {
   const { data: d, day: D, appr, q, setQ } = useApp()
   const count = pending(d, D, appr).count
@@ -170,11 +170,11 @@ function TodayPanel() {
           <label className="flex h-9 items-center gap-2 rounded-full border border-input bg-card pl-4 pr-2 text-sm font-semibold">
             매장별
             <select value={store?.id ?? ''} onChange={(e) => pick(e.target.value)} className={cn('h-8 max-w-56 rounded-full bg-transparent pr-1 text-sm font-semibold text-primary', FR)}>
-              <option value="">선출시 {pilots.length}곳 전체</option>
-              <optgroup label={`선출시 매장 ${pilots.length}곳`}>
+              <option value="">대표 {pilots.length}곳 전체</option>
+              <optgroup label={`대표 매장 ${pilots.length}곳 (선출시)`}>
                 {pilots.map((st) => <option key={st.id} value={st.id}>{st.name} ({st.type})</option>)}
               </optgroup>
-              <optgroup label={`일반 매장 ${general.length}곳 (미출시)`}>
+              <optgroup label={`대조 매장 ${general.length}곳 (미출시, 가상)`}>
                 {general.map((st) => <option key={st.id} value={st.id}>{st.name} ({st.type})</option>)}
               </optgroup>
             </select>
@@ -195,7 +195,7 @@ function TodayPanel() {
         })}
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{!q.m && !judging ? (plain ? '일반 매장은 신제품을 팔지 않아 방문만 볼 수 있어요' : '지표를 누르면 상세 데이터가 아래에 열려요') : ''}</p>
+        <p className="text-xs text-muted-foreground">{!q.m && !judging ? (plain ? '대조 매장은 신제품을 팔지 않아 방문만 볼 수 있어요' : '지표를 누르면 상세 데이터가 아래에 열려요') : ''}</p>
         <button type="button" aria-pressed={judging} onClick={() => setQ({ ...RESET, m: '', v: 'judge' })} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:translate-y-px', FR, judging && 'ring-2 ring-primary/40 ring-offset-2 ring-offset-background')}>판정하기
             {count > 0 && <span aria-label={`판정 필요 ${count}건`} className="num grid size-5 place-items-center rounded-full bg-white text-xs font-bold text-primary">{count}</span>}
           </button>
@@ -296,7 +296,7 @@ function headlineOf(v: V, g: Gap, D: number) {
 
 function adviceOf(v: V, pilotGap: Gap | null) {
   if (v.dir === 'fix') return `정식 출시 전 보완이 필요해요. 놓친 판매가 하루 약 ${num(v.lostUnits)}개로 기대 판매의 ${Math.round(v.lostShare * 100)}%예요`
-  if (v.dir === 'expand') return `정식 출시 확대가 필요해요${pilotGap ? `. 다만 선출시 매장 ${pilotGap.k}곳은 구매 전환이 다른 곳보다 ${abs(pilotGap.conv)} 낮아요` : ''}`
+  if (v.dir === 'expand') return `정식 출시 확대가 필요해요${pilotGap ? `. 다만 대표 매장 ${pilotGap.k}곳은 구매 전환이 다른 곳보다 ${abs(pilotGap.conv)} 낮아요` : ''}`
   if (v.dir === 'wrap') return '정식 출시 전 정리가 필요해요'
   if (v.dir === 'wait') return '아직 방향을 정하지 않아요'
   return '지금 상태로 더 지켜봐야 해요'
@@ -320,8 +320,8 @@ function Detail() {
     const gapOf = (rows: typeof flag, n: number, scope: string): Gap => ({ n, k: rows.length, scope, conv: mean(rows.map((r) => r.y)), dwell: mean(rows.map((r) => r.dwell)) })
     const cls = classify(d, D)
     return {
-      g: pil.length ? gapOf(pil, pilots, '선출시') : gapOf(flag, d.stores.length, '전체'),
-      pilotGap: pil.length ? gapOf(pil, pilots, '선출시') : null,
+      g: pil.length ? gapOf(pil, pilots, '대표') : gapOf(flag, d.stores.length, '전체'),
+      pilotGap: pil.length ? gapOf(pil, pilots, '대표') : null,
       shapes: { radar: d.scn.radarShape, actual: cls.type },
       events: flag.filter((r) => r.st.event).length,
     }
@@ -332,7 +332,7 @@ function Detail() {
     <>
       {q.from === 'launch' && (
         <div className="mb-4 flex items-start gap-3 rounded-2xl bg-accent px-4 py-3 text-sm">
-          <p className="min-w-0 flex-1"><b>개발 13주가 지났다고 가정</b>하고 선출시 {pilots}곳의 출시 후 <Day n={D} /> 시점을 열었습니다. 합성 시뮬레이션이며, 실제 매장은 가상 카메라와 POS 연결 뒤에 같은 화면으로 봅니다.</p>
+          <p className="min-w-0 flex-1"><b>개발 13주가 지났다고 가정</b>하고 대표 매장 {pilots}곳(손님 유형마다 3곳)의 출시 후 <Day n={D} /> 시점을 열었습니다. 합성 시뮬레이션이며, 실제 매장은 가상 카메라와 POS 연결 뒤에 같은 화면으로 봅니다.</p>
           <button type="button" aria-label="안내 닫기" onClick={() => setQ({ from: '' })} className="rounded-md p-1 text-muted-foreground hover:bg-background/60"><X className="size-4" /></button>
         </div>
       )}
@@ -348,6 +348,7 @@ function Detail() {
         </div>
         <TodayPanel />
       </section>
+      <NationalCard />
       <div id="react-detail" className="scroll-mt-20">
         {view && (
           <EmbeddedCtx.Provider value>
@@ -370,7 +371,7 @@ export default function ReactPage() {
   const selected = picked && !!q.launch && scn.id === q.launch && scn.launch !== '캠페인'
   return (
     <div>
-      <TabTitle title="매장 반응" desc="선출시 매장 반응을 보고 판정해요" />
+      <TabTitle title="매장 반응" desc="대표 매장 선출시 반응으로 전국 평균을 미리 읽고 판정해요" />
       <ProductStrip picked={picked} onPick={() => setPicked(true)} />
       {selected && <Detail />}
     </div>
