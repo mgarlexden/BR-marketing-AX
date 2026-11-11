@@ -12,6 +12,7 @@ import { EmptyState, TabTitle } from '@/components/page'
 import { DirChip, Pill } from '@/components/status'
 import { Day } from '@/components/figures'
 import { CAUSE, USE } from './feedback'
+import { causeOf } from '@/lib/derived'
 
 const H = RADAR.meta.horizon
 
@@ -36,7 +37,7 @@ function Log() {
       const ra = appr[radarKey(sc.id)] as RadarApproval | undefined
       if (ra) r.push({ sort: ra.day, when: <Day n={ra.day} />, flavor: sc.label, kind: '유형 보정', body: ra.state === 'approved' ? <span className="text-xs"><b>{ra.shape}</b>으로 보정</span> : <span className="text-xs text-muted-foreground">보류</span>, undo: () => setAppr(radarKey(sc.id), null) })
       const le = appr[learnKey(sc.id)] as LearnDecision | undefined
-      if (le) r.push({ sort: le.day, when: <Day n={le.day} />, flavor: sc.label, kind: '학습 판단', body: <span className="text-xs">{CAUSE[le.cause]?.label ?? le.cause}, <b>{USE[le.use]}</b>{le.note ? `. ${le.note}` : ''}</span>, undo: () => setAppr(learnKey(sc.id), null) })
+      if (le) r.push({ sort: le.day, when: <Day n={le.day} />, flavor: sc.label, kind: '학습 판단', body: <span className="text-xs">{CAUSE[causeOf(le.cause)]?.label ?? le.cause}, <b>{USE[le.use]}</b>{le.note ? `. ${le.note}` : ''}</span>, undo: () => setAppr(learnKey(sc.id), null) })
     })
     return r.sort((a, b) => b.sort - a.sort)
   }, [scenarios, appr, setAppr])

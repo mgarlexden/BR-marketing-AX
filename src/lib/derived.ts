@@ -1,5 +1,5 @@
 /* 화면 공통 파생 값: 매장 상태, 변화 알림, 결정 대기 */
-import { classify, diagnose, movers, shortName, verdict, DAYS, type Data, type Dir, type Store } from './data'
+import { classify, diagnose, liveStores, movers, shortName, verdict, DAYS, type Data, type Dir, type Store } from './data'
 
 export type StatusKey = 'stockout' | 'check' | 'surge' | 'drop' | 'normal'
 export interface StoreStatus { key: StatusKey; label: string; tone: 'bad' | 'warn' | 'primary' | 'good' | 'neutral' }
@@ -9,7 +9,7 @@ export function storeStatuses(data: Data, D: number): Record<string, StoreStatus
   const diag = diagnose(data, D)
   const mv = movers(data, D, 5, 3)
   const out: Record<string, StoreStatus> = {}
-  data.stores.forEach((st) => {
+  liveStores(data).forEach((st) => {
     const row = diag.rows.find((r) => r.st.id === st.id)!
     const m = mv.find((r) => r.st.id === st.id)!
     let s: StoreStatus = { key: 'normal', label: '정상', tone: 'neutral' }
@@ -39,7 +39,7 @@ export function feed(data: Data, D: number, limit = 10): FeedItem[] {
     const alSet = new Set(al.map((r) => r.st.id))
     al.forEach((r) => { if (!prevAlert.has(r.st.id)) items.push({ day: d, text: `${shortName(r.st)} 순위 ${r.delta > 0 ? '급등' : '급락'} ${Math.abs(r.delta)}계단`, tone: r.delta > 0 ? 'primary' : 'bad', store: r.st.id }) })
     prevAlert = alSet
-    data.stores.forEach((st) => { if (st.series[d].out && !st.series[d - 1].out) items.push({ day: d, text: `${shortName(st)} 품절 의심`, tone: 'bad', store: st.id }) })
+    liveStores(data).forEach((st) => { if (st.series[d].out && !st.series[d - 1].out) items.push({ day: d, text: `${shortName(st)} 품절 의심`, tone: 'bad', store: st.id }) })
   }
   return items.sort((a, b) => b.day - a.day).slice(0, limit)
 }
@@ -96,7 +96,10 @@ export interface LaunchDecision {
 }
 export interface SkipDecision { kind: 'skip'; kw: string; prob: number; type: string }
 /** 환류 화면의 학습 판단 */
-export type Cause = 'radar' | 'ops' | 'event'
+/** 판매가 예상과 어긋난 원인: 방문 부족(트렌드·노출), 구매 전환 낮음(맛·진열), 품절·행사(운영 이벤트) */
+export type Cause = 'visit' | 'conv' | 'event'
+/** 예전에 저장된 기록(radar, ops)도 새 분류로 읽는다 */
+export const causeOf = (c: string): Cause => (c === 'radar' ? 'visit' : c === 'ops' ? 'conv' : (c as Cause))
 export interface LearnDecision { kind: 'learn'; scn: string; day: number; cause: Cause; use: 'use' | 'exclude' | 'hold'; note: string }
 export type Approvals = Record<string, DirDecision | FixRequest | RadarApproval | LaunchDecision | SkipDecision | LearnDecision>
 

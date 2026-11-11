@@ -4,8 +4,11 @@ export const DAYS = 28 // 출시 후 D+0 ~ D+28
 export const PRE = 14 // 출시 전 베이스라인 일수
 /** 화면의 "오늘". 제품마다 출시일은 오늘에서 현재 경과일을 뺀 날이다. */
 export const REFERENCE_DATE = new Date(2026, 10, 3)
-import { PLACES, type Place } from './stores'
-export const TYPES =['대학가', '오피스', '주거', '역세권', '관광'] as const
+import { PLACES, TYPE_COUNT, type Place } from './stores'
+/** 손님 유형. 유형마다 대표 매장 3곳(선출시)과 대조 매장 4곳(가상)을 둔다 */
+export const TYPES = ['2030', '4050 가족', '관광·나들이', '직장인', '혼합'] as const
+export const PER_TYPE = 7
+export const REPS_PER_TYPE = 3
 export type StoreType = (typeof TYPES)[number]
 export type Kind = 'burst' | 'slow' | 'wave'
 export type ShapeName = '단발형' | '완만형' | '반복형'
@@ -17,14 +20,14 @@ export interface Scenario {
   today: number
   /** 제품 선택 옆에 보여 줄 한 줄 설명 (가상) */
   blurb: string
-  /** 선출시 매장을 직접 고른 경우 그 목록. 없으면 상권마다 1곳 */
+  /** 선출시할 대표 매장을 직접 고른 경우 그 목록. 없으면 대표 매장 전체 */
   pilotIds?: string[]
   /** 이 맛이 출시 결정으로 만들어진 경우 레이더 키워드 */
   kw?: string
 }
 export const SCENARIOS: Record<'a' | 'b' | 'c', Scenario> = {
   a: { id: 'a', label: '솔티 캐러멜 크런치', launch: '새로운 맛', shape: '단발형', kind: 'burst', radarKind: 'slow', radarShape: '완만형', today: 5,
-    blurb: '이달의 맛 신제품. 달콤짠 캐러멜에 바삭한 크런치를 더한 시즌 한정 맛. 매장 20곳 중 5곳이 먼저 출시.' },
+    blurb: '이달의 맛 신제품. 달콤짠 캐러멜에 바삭한 크런치를 더한 시즌 한정 맛. 대표 매장 15곳이 먼저 출시.' },
   b: { id: 'b', label: '달빛토끼 루나 콜라보', launch: '콜라보', shape: '완만형', kind: 'slow', radarKind: 'slow', radarShape: '완만형', today: 12,
     blurb: '캐릭터 루나와 함께한 시즌 메뉴와 한정 굿즈. 팬 방문을 늘리는 것이 목표인 4주 콜라보.' },
   c: { id: 'c', label: '주말 더블업 캠페인', launch: '캠페인', shape: '반복형', kind: 'wave', radarKind: 'burst', radarShape: '단발형', today: 18,
@@ -33,12 +36,16 @@ export const SCENARIOS: Record<'a' | 'b' | 'c', Scenario> = {
 export const launchDate = (scn: Scenario) => new Date(REFERENCE_DATE.getTime() - scn.today * 86400000)
 
 export const TYPE_SPEC: Record<StoreType, { base: number; speed: number; amp: number; wk: number[] }> = {
-  '대학가': { base: 160, speed: 0.85, amp: 1.2, wk: [1.0, 1.05, 1.05, 1.05, 1.1, 0.8, 0.6] },
-  '오피스': { base: 120, speed: 1.0, amp: 0.85, wk: [1.1, 1.12, 1.1, 1.08, 1.0, 0.55, 0.45] },
-  '주거': { base: 90, speed: 1.3, amp: 0.75, wk: [0.85, 0.85, 0.9, 0.9, 1.0, 1.25, 1.25] },
-  '역세권': { base: 200, speed: 0.95, amp: 1.0, wk: [1.0, 1.0, 1.0, 1.0, 1.1, 1.05, 0.95] },
-  '관광': { base: 140, speed: 1.1, amp: 1.05, wk: [0.85, 0.85, 0.9, 0.95, 1.1, 1.3, 1.25] },
+  '2030': { base: 160, speed: 0.85, amp: 1.2, wk: [1.0, 1.05, 1.05, 1.05, 1.1, 0.8, 0.6] },
+  '4050 가족': { base: 100, speed: 1.3, amp: 0.75, wk: [0.85, 0.85, 0.9, 0.9, 1.0, 1.25, 1.25] },
+  '관광·나들이': { base: 140, speed: 1.1, amp: 1.05, wk: [0.85, 0.85, 0.9, 0.95, 1.1, 1.3, 1.25] },
+  '직장인': { base: 120, speed: 1.0, amp: 0.85, wk: [1.1, 1.12, 1.1, 1.08, 1.0, 0.55, 0.45] },
+  '혼합': { base: 180, speed: 0.95, amp: 1.0, wk: [1.0, 1.0, 1.0, 1.0, 1.1, 1.05, 0.95] },
 }
+
+/** 대표 매장 평균을 전국 평균으로 바꾸는 가중치. 유형별 후보 매장 수 비중 (서울 기준 가정) */
+const COUNT_SUM = TYPES.reduce((a, t) => a + TYPE_COUNT[t], 0)
+export const TYPE_WEIGHT = Object.fromEntries(TYPES.map((t) => [t, TYPE_COUNT[t] / COUNT_SUM])) as Record<StoreType, number>
 
 export function hash(str: string): number {
   let h = 2166136261
@@ -91,7 +98,7 @@ export interface DayPoint {
 }
 export interface Store {
   id: string; type: StoreType; name: string; place: Place; base: number; dwell0: number; conv0: number; alloc: number; jitter: number
-  conv: number; lowConv: boolean; event?: boolean; /** 행사 시작일 (행사 매장만 의미 있음, 3일간) */ evStart?: number; /** 선출시 매장 (상권마다 1곳) */ pilot: boolean; baseline: number; baselineRaw: number; dwellBase: number; stock0: number
+  conv: number; lowConv: boolean; event?: boolean; /** 행사 시작일 (행사 매장만 의미 있음, 3일간) */ evStart?: number; /** 선출시 매장 = 대표 매장 (손님 유형마다 3곳) */ pilot: boolean; baseline: number; baselineRaw: number; dwellBase: number; stock0: number
   series: DayPoint[]
 }
 export interface Data {
@@ -109,11 +116,11 @@ export function build(scnId: string, custom?: Scenario): Data {
   for (let i = -PRE; i <= DAYS; i++) (i < 0 ? pre : days).push(dayInfo(i, launch))
   const stores: Store[] = []
   TYPES.forEach((t, ti) => {
-    for (let n = 1; n <= 4; n++) {
-      const id = 's' + ('0' + (ti * 4 + n)).slice(-2)
+    for (let n = 1; n <= PER_TYPE; n++) {
+      const id = 's' + ('0' + (ti * PER_TYPE + n)).slice(-2)
       const r = rng(hash(scn.id + ':' + id + ':spec'))
       stores.push({
-        id, type: t, name: PLACES[ti * 4 + n - 1].name, place: PLACES[ti * 4 + n - 1],
+        id, type: t, name: PLACES[ti * PER_TYPE + n - 1].name, place: PLACES[ti * PER_TYPE + n - 1],
         base: TYPE_SPEC[t].base * (0.85 + 0.3 * r()),
         dwell0: 15 + 7 * r(), conv0: 0.2 + 0.05 * r(), alloc: 0.8 + 1.0 * r(), jitter: 0.85 + 0.3 * r(),
         conv: 1, lowConv: false, pilot: false, baseline: 0, baselineRaw: 0, dwellBase: 0, stock0: 0, series: [],
@@ -129,7 +136,7 @@ export function build(scnId: string, custom?: Scenario): Data {
   while (nEv < 2) { const k2 = Math.floor(evPick() * stores.length); if (!stores[k2].event) { stores[k2].event = true; nEv++ } }
 
   if (scn.pilotIds?.length) stores.forEach((st) => { st.pilot = scn.pilotIds!.includes(st.id) })
-  else TYPES.forEach((t, ti) => { stores[ti * 4 + Math.floor(rng(hash(scn.id + ':pilot:' + t))() * 4)].pilot = true })
+  else stores.forEach((st) => { st.pilot = st.place.rep })
 
   stores.forEach((st) => {
     const spec = TYPE_SPEC[st.type]
@@ -179,11 +186,12 @@ export function build(scnId: string, custom?: Scenario): Data {
     list.forEach((st) => { const p = st.series[d]; s += p.visits; e += raw ? p.expRaw : p.exp })
     return s / e - 1
   }
+  const live = stores.filter((s2) => s2.pilot)
   const agg: number[] = [], aggRaw: number[] = []
-  for (let d = 0; d <= DAYS; d++) { agg.push(aggregate(stores, d)); aggRaw.push(aggregate(stores, d, true)) }
+  for (let d = 0; d <= DAYS; d++) { agg.push(aggregate(live, d)); aggRaw.push(aggregate(live, d, true)) }
   const byType = {} as Record<StoreType, number[]>
   TYPES.forEach((t) => {
-    const list = stores.filter((s) => s.type === t)
+    const list = live.filter((s) => s.type === t)
     byType[t] = []
     for (let d = 0; d <= DAYS; d++) byType[t].push(aggregate(list, d))
   })
@@ -199,10 +207,37 @@ export function build(scnId: string, custom?: Scenario): Data {
   return { scn, days, pre, stores, agg, aggRaw, byType, pilotAgg, ctrlAgg, netAgg }
 }
 
+/** 신제품을 실제로 파는 매장 (선출시 = 대표 매장). 대조 매장은 미출시라 진단, 발주, 순위에서 뺀다 */
+export const liveStores = (data: Data) => data.stores.filter((s) => s.pilot)
+
 export function aggOf(list: Store[], d: number, raw = false) {
   let s = 0, e = 0
   list.forEach((st) => { const p = st.series[d]; s += p.visits; e += raw ? p.expRaw : p.exp })
   return { v: s / e - 1, vis: s, exp: e }
+}
+
+/* ---------- 대표 매장 → 전국 평균 ---------- */
+export interface TypeNet { type: StoreType; n: number; pilot: number; ctrl: number; net: number; lo: number; hi: number; weight: number }
+/** 유형별 대표 매장 순효과(대표 방문 증가 − 같은 유형 대조 매장). lo~hi는 대표 매장 사이의 최소~최대 */
+export function typeNets(data: Data, D: number): TypeNet[] {
+  return TYPES.map((t) => {
+    const pil = data.stores.filter((s) => s.type === t && s.pilot)
+    const ctl = data.stores.filter((s) => s.type === t && !s.pilot)
+    let sv = 0, se = 0
+    ctl.forEach((c) => { sv += c.series[D].ctrlVis; se += c.series[D].exp })
+    const ctrl = se ? sv / se - 1 : 0
+    const pilot = pil.length ? aggOf(pil, D).v : 0
+    const each = pil.map((s) => s.series[D].visits / s.series[D].exp - 1 - ctrl)
+    return { type: t, n: pil.length, pilot, ctrl, net: pilot - ctrl, lo: each.length ? Math.min(...each) : 0, hi: each.length ? Math.max(...each) : 0, weight: TYPE_WEIGHT[t] }
+  })
+}
+/** 유형별 순효과에 가중치를 곱한 전국 평균 예측. 대표 매장이 없는 유형은 빼고 가중치를 다시 맞춘다 */
+export function nationalEstimate(data: Data, D: number) {
+  const rows = typeNets(data, D)
+  const used = rows.filter((r) => r.n > 0)
+  const w = used.reduce((a, r) => a + r.weight, 0) || 1
+  const f = (k: 'net' | 'lo' | 'hi') => used.reduce((a, r) => a + r[k] * r.weight, 0) / w
+  return { rows, net: f('net'), lo: f('lo'), hi: f('hi'), covered: used.reduce((a, r) => a + r.weight, 0), n: used.reduce((a, r) => a + r.n, 0) }
 }
 
 export function radarCurve(data: Data, corrected = false, observed?: { kind: Kind; peakVal: number }): number[] {
@@ -253,7 +288,7 @@ export const DIAG = { rise: 0.15, convLow: -0.25 }
 export type Zone = 'flag' | 'good' | 'reach' | 'hidden'
 export interface DiagRow { st: Store; x: number; y: number; conv: number; dwell: number; out: boolean; zone: Zone; hint: string; visits3: number }
 export function diagnose(data: Data, D: number): { rows: DiagRow[]; medConv: number } {
-  const rows: DiagRow[] = data.stores.map((st) => {
+  const rows: DiagRow[] = liveStores(data).map((st) => {
     const x = mean(lastN(st, D, 3, 'react'))
     let sales = 0, vis = 0
     for (let span = 3; span <= 8 && !vis; span += 5) {
@@ -289,7 +324,7 @@ export function orders(data: Data, D: number, params?: Partial<OrderParams>): { 
   const p = { ...ORDER_DEFAULT, ...(params || {}) }
   const diag = diagnose(data, D)
   const flagged = new Set(diag.rows.filter((r) => r.zone === 'flag').map((r) => r.st.id))
-  const rows = data.stores.map((st): OrderRow => {
+  const rows = liveStores(data).map((st): OrderRow => {
     const cur = st.series[D]
     const s3 = mean(lastN(st, D, 3, 'sales'))
     const r3 = mean(lastN(st, D, 3, 'react'))
@@ -318,14 +353,15 @@ export function typeStats(data: Data, D: number): TypeStat[] {
     let pk = 0
     a.forEach((v, i) => { if (v > a[pk]) pk = i })
     const reached = (D >= pk + 2 && a[D] < a[pk] * 0.9) || D >= 12
-    return { type: t, n: data.stores.filter((s) => s.type === t).length, peakDay: pk, peak: a[pk], now: a[D], reached, retain: D >= 14 ? a[14] / a[pk] : null, series: a }
+    return { type: t, n: liveStores(data).filter((s) => s.type === t).length, peakDay: pk, peak: a[pk], now: a[D], reached, retain: D >= 14 ? a[14] / a[pk] : null, series: a }
   })
 }
 
 export function rankSeries(data: Data): number[][] {
-  const ranks: number[][] = data.stores.map(() => [])
+  const live = liveStores(data)
+  const ranks: number[][] = live.map(() => [])
   for (let d = 0; d <= DAYS; d++) {
-    const order = data.stores.map((s, i) => ({ i, v: mean(lastN(s, d, 3, 'react')) })).sort((a, b) => b.v - a.v)
+    const order = live.map((s, i) => ({ i, v: mean(lastN(s, d, 3, 'react')) })).sort((a, b) => b.v - a.v)
     order.forEach((o, pos) => { ranks[o.i][d] = pos + 1 })
   }
   return ranks
@@ -335,8 +371,9 @@ export interface Mover { st: Store; now: number; before: number | null; delta: n
 export function movers(data: Data, D: number, threshold: number, gap: number): Mover[] {
   const ranks = rankSeries(data)
   const sm = (st: Store, d: number) => mean(lastN(st, d, 3, 'react'))
-  const aggSm = (d: number) => mean(data.stores.map((st) => sm(st, d)))
-  return data.stores.map((st, i) => {
+  const live = liveStores(data)
+  const aggSm = (d: number) => mean(live.map((st) => sm(st, d)))
+  return live.map((st, i) => {
     const now = ranks[i][D]
     const before = D - gap >= 0 ? ranks[i][D - gap] : null
     const delta = before == null ? 0 : before - now
@@ -452,12 +489,12 @@ export const DIR_RULE: Record<Dir, string> = {
 /* ---------- 매장 반응 4단계 (유입, 관심, 전환, 맛 단위) ---------- */
 export interface Stage { now: number; before: number }
 export interface Stages { inflow: Stage; interest: Stage; conv: Stage; share: Stage }
-/** 전체 20곳 기준. 최근 3일 값과 그 직전 3일 값 */
+/** 선출시(대표) 매장 기준. 최근 3일 값과 그 직전 3일 값 */
 export function stageStats(data: Data, D: number): Stages {
   const at = (d: number) => {
-    const interest = mean(data.stores.map((st) => mean(lastN(st, d, 3, 'dwell')) / st.dwellBase - 1))
+    const interest = mean(liveStores(data).map((st) => mean(lastN(st, d, 3, 'dwell')) / st.dwellBase - 1))
     let sales = 0, vis = 0, ord = 0, sold = 0
-    data.stores.forEach((st) => {
+    liveStores(data).forEach((st) => {
       for (let i = Math.max(0, d - 2); i <= d; i++) {
         const p = st.series[i]
         ord += p.orders; sold += p.sales
