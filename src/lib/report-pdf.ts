@@ -26,7 +26,7 @@ const VERDICT: Record<TimingVerdict, [string | null, string, string | null]> = {
   지금: [C.primary, C.white, null], 선점: [C.accent, C.primary, C.pick], 관찰: [C.muted, C.sub, null], 늦음: [null, C.sub, C.line],
 }
 
-const VERDICT_NAME: Record<TimingVerdict, string> = { 지금: '지금 출시', 선점: '먼저 출시', 관찰: '지켜보기', 늦음: '이번엔 늦음' }
+const VERDICT_NAME: Record<TimingVerdict, string> = { 지금: '지금 출시', 선점: '아직 이름', 관찰: '지켜보기', 늦음: '이번엔 늦음' }
 
 const PW = 210, PH = 297, M = 14, CW = PW - M * 2, FOOT = PH - 11
 /** 카드 안쪽 여백, 표 머리 높이, 표 한 줄 높이 (mm) */
@@ -39,7 +39,7 @@ const cardHeight = (t: ReportTrend) => 27.5 + HEAD + t.rows.length * ROW + 3.5
 const reasonOf = (t: ReportTrend, h: number, sale: number) => {
   const p = t.peakIn
   if (p != null) {
-    const tail = t.verdict === '지금' ? `판매 ${sale}주 안에 정점 도래` : t.verdict === '선점' ? `정점보다 ${p - h - sale}주 먼저 판매 종료` : '출시 전에 정점이 지나 다음 시즌 겨냥'
+    const tail = t.verdict === '지금' ? `판매 ${sale}주 안에 정점 도래` : t.verdict === '선점' ? `${p - h - sale}~${p - h}주 뒤 개발 시작, ${p - sale}~${p}주 뒤 출시` : '출시 전에 정점이 지나 다음 시즌 겨냥'
     return `정점까지 약 ${p}주 · ${tail}`
   }
   if (t.verdict === '지금') return `${h}주 뒤 출시 시점에도 수요가 남을 전망`
@@ -103,7 +103,7 @@ export function drawReport(doc: jsPDF, d: ReportData) {
     const items = [
       { label: '이번 주 감지 트렌드', value: d.trends.length, unit: '개' },
       { label: '지금 출시', value: count('지금'), unit: '개', strong: true },
-      { label: '먼저 출시', value: count('선점'), unit: '개' },
+      { label: '아직 이름', value: count('선점'), unit: '개' },
       { label: '이달의 맛 후보 키워드', value: rows.filter((r) => r.candidate).length, unit: `/ ${rows.length}개` },
     ]
     const gap = 4, w = (CW - gap * 3) / 4, h = 22
@@ -176,7 +176,7 @@ export function drawReport(doc: jsPDF, d: ReportData) {
   /** 출시 판단 4가지의 뜻. 순위도 이 순서를 먼저 따른다 (flavor-trends.ts 의 timingOf 규칙) */
   const LEGEND: [TimingVerdict, string][] = [
     ['지금', `${d.horizon}주 뒤 출시하면 판매 ${d.sale}주 안에 정점이 오거나, 출시 때도 수요가 남을 전망`],
-    ['선점', '정점이 아직 멀어 판매가 정점보다 앞서 끝남. 급하진 않지만 미리 자리 잡는 선점 출시'],
+    ['선점', `정점이 아직 멀어 지금 개발하면 정점 전에 판매가 끝남. 개발 시작을 늦춰 정점 ${d.sale}주 전~정점 주에 출시`],
     ['관찰', '아직 판단하기 이름. 4주 더 지켜본 뒤 결정'],
     ['늦음', `개발하는 ${d.horizon}주 사이 정점이 지나거나 수요가 식을 전망. 다음 시즌 겨냥`],
   ]
