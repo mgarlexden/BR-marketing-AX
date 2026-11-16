@@ -3,7 +3,7 @@ import { ChevronDown, Heart, Minus, Plus, RefreshCw, Search, X } from 'lucide-re
 import { useApp } from '@/lib/app-context'
 import { SCENARIOS, TYPES } from '@/lib/data'
 import { launchKey, skipKey, type LaunchDecision, type SkipDecision } from '@/lib/derived'
-import { ASSUME, dataFor, expectedEffect, launchId, MAX_SLOTS, recommendedStores } from '@/lib/launch'
+import { ASSUME, dataFor, expectedEffect, launchId, MAX_SLOTS } from '@/lib/launch'
 import type { CollabItem } from '@/lib/collab'
 import { RADAR } from '@/lib/trend-data'
 import { addWeeks, shortDate, type RadarItem } from '@/lib/trend'
@@ -73,16 +73,32 @@ const useLikes = () => {
   return { likes, toggle }
 }
 
-function downloadReport() {
-  const lines = [`주간 맛 트렌드 리포트 (데이터 기준일 ${shortDate(meta.last)})`, '네이버 데이터랩 주간 검색량 기준. 트렌드 묶음과 조합은 팀 가설입니다. 배라에 이미 있는 재료는 뺐습니다.', '']
-  TRENDS.forEach((t) => {
-    lines.push(`${t.rank}. ${t.name} | ${t.status} | 확산 지수 ${t.index} | 출시 판단 ${t.timing.label}`)
-    t.ingredients.forEach((it) => lines.push(`   - ${it.kw}: ${it.type}, ${H}주 생존 ${Math.round(it.prob * 100)}%, 이번 주 약 ${weeklyNow(it).toLocaleString()}회 검색, ${ACTION_LABEL[it.action]}`))
+/** public/fonts 의 폰트 파일을 jsPDF에 넣을 base64로 받는다 (버튼을 누를 때만) */
+async function fontBase64(file: string) {
+  const buf = new Uint8Array(await (await fetch(`${import.meta.env.BASE_URL}fonts/${file}`)).arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+
+async function downloadReport() {
+  const [{ jsPDF }, { drawReport, registerFonts }, regular, bold] = await Promise.all([
+    import('jspdf'), import('@/lib/report-pdf'), fontBase64('Pretendard-Regular.ttf'), fontBase64('Pretendard-Bold.ttf'),
+  ])
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
+  registerFonts(doc, regular, bold)
+  drawReport(doc, {
+    dataDate: shortDate(meta.last),
+    source: '네이버 데이터랩 주간 검색량 기준. 트렌드 묶음과 조합은 팀 가설입니다. 배라에 이미 있는 재료는 뺐습니다.',
+    horizon: H,
+    sale: SALE,
+    createdAt: new Date(),
+    trends: TRENDS.map((t) => ({
+      rank: t.rank, name: t.name, status: t.status, index: t.index, verdict: t.timing.verdict, verdictLabel: t.timing.label, peakIn: t.timing.peakIn, color: t.art.bits,
+      rows: t.ingredients.map((it) => ({ kw: it.kw, type: it.type, prob: it.prob, weekly: weeklyNow(it), action: ACTION_LABEL[it.action], candidate: it.action === '후보' })),
+    })),
   })
-  const url = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url; a.download = `맛트렌드_주간리포트_${meta.last}.txt`; a.click()
-  URL.revokeObjectURL(url)
+  doc.save(`맛트렌드_주간리포트_${meta.last}.pdf`)
 }
 
 function TimingBar({ peakIn }: { peakIn: number | null }) {
@@ -386,7 +402,7 @@ function Row({ k, children }: { k: keyof typeof PART; children: React.ReactNode 
 function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, sub }: { cur: Pick; liked: boolean; onLike: () => void; children: React.ReactNode; verdict: string; eyebrow: string; tag: string; title: string; sub: string }) {
   const { appr, setAppr, go, scenarios } = useApp()
   const stores = useMemo(() => dataFor(SCENARIOS.a).stores.filter((s) => s.place.rep), [])
-  const [sel, setSel] = useState<string[]>(recommendedStores)
+  const [sel, setSel] = useState<string[]>([])
   const [price, setPrice] = useState(ASSUME.price)
   const [cannibal, setCannibal] = useState(Math.round(ASSUME.cannibal * 100))
   const ex = useMemo(() => expectedEffect(cur.type, sel, price, cannibal / 100), [cur, sel, price, cannibal])
@@ -442,7 +458,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
                 <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground"><span className="num">{sel.length ? `+${pc(ex.visitLo)}~${pc(ex.visitHi)} · ${man(ex.salesLo)}~${man(ex.salesHi)}원` : '-'}</span><ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden /></span>
               </summary>
               <div className="pb-4">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">대표 매장 {sel.length}곳 선출시 (손님 유형마다 3곳, 전부 선택에서 시작)</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">대표 매장 {sel.length}곳 선출시 (손님 유형마다 3곳 중에서 직접 골라요)</p>
                 <p className="mb-3 text-xs leading-relaxed text-muted-foreground"><b className="text-foreground">대표 매장:</b> 손님 유형 {TYPES.length}종({TYPES.join(', ')})마다 대표 3곳이 먼저 출시해요. 대표 매장 반응에 유형 가중치를 곱해 전국 평균을 미리 읽어요. 매장 이름에 마우스를 올리면 동네와 직영·가맹이 보여요.</p>
                 <div className="flex flex-col gap-2">
                   {TYPES.map((t) => (
@@ -605,7 +621,7 @@ export default function Decide() {
 
   return (
     <div className="flavor-page">
-      <TabTitle title="트렌드" desc="뜨는 맛을 찾고 출시를 결정해요">
+      <TabTitle title="출시 후보" desc="뜨는 맛을 찾고 출시를 결정해요">
         <label className="flex w-full items-center gap-2 border-b border-border px-1 pb-1.5 sm:w-64">
           <span className="sr-only">맛, 재료 검색</span>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="맛·재료 검색" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />

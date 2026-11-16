@@ -5,7 +5,7 @@ import { dataFor, scenarioList } from './launch'
 
 export type RouteId = 'decide' | 'react' | 'feedback' | 'log' | 'radar' | 'privacy'
 export const ROUTE_TITLES: Record<RouteId, string> = {
-  decide: '트렌드', react: '매장 반응', feedback: '피드백', log: '결정 로그', radar: '트렌드 레이더', privacy: '개인정보 보호',
+  decide: '출시 후보', react: '매장 반응', feedback: '피드백', log: '결정 로그', radar: '트렌드 레이더', privacy: '개인정보 보호',
 }
 /** 이전 화면 주소로 들어와도 새 구조로 보낸다 */
 const LEGACY: Record<string, { route: RouteId; q: Record<string, string> }> = {
@@ -33,8 +33,8 @@ export const useApp = () => {
 function parse(): { route: RouteId; q: Q } {
   const h = location.hash.replace(/^#\/?/, '')
   const qi = h.indexOf('?')
-  const name = (qi < 0 ? h : h.slice(0, qi)) || 'decide'
-  let route = (name in ROUTE_TITLES ? name : 'decide') as RouteId
+  const name = (qi < 0 ? h : h.slice(0, qi)) || 'radar'
+  let route = (name in ROUTE_TITLES ? name : 'radar') as RouteId
   const q: Q = {}
   if (qi >= 0) new URLSearchParams(h.slice(qi + 1)).forEach((v, k) => { q[k] = v })
   const lg = LEGACY[name]
@@ -52,7 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
 
   useEffect(() => {
-    if (!location.hash) history.replaceState(null, '', '#/decide')
+    if (!location.hash) history.replaceState(null, '', '#/radar')
     const f = () => setSt(parse())
     f()
     window.addEventListener('hashchange', f)

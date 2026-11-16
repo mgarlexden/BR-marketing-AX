@@ -6,10 +6,10 @@ import { EvidenceLegend } from '@/components/evidence'
 import { cn } from '@/lib/utils'
 
 const NAV: { id: RouteId; label: string; sub: string; icon: typeof ScanEye }[] = [
-  { id: 'decide', label: '트렌드', sub: '1', icon: TrendingUp },
+  { id: 'radar', label: '트렌드 레이더', sub: '', icon: Activity },
+  { id: 'decide', label: '출시 후보', sub: '1', icon: TrendingUp },
   { id: 'react', label: '매장 반응', sub: '2', icon: MapPinned },
   { id: 'feedback', label: '피드백', sub: '3', icon: Repeat2 },
-  { id: 'radar', label: '트렌드 레이더', sub: '', icon: Activity },
 ]
 
 function Sidebar({ open, onClose, pendingCount, radarPending, collapsed, onToggle }: { open: boolean; onClose: () => void; pendingCount: number; radarPending: number; collapsed: boolean; onToggle: () => void }) {
@@ -65,7 +65,7 @@ function Header({ onMenu }: { onMenu: () => void }) {
     <header className="sticky top-0 z-30 border-b border-border bg-background">
       <div className="flex items-center gap-x-4 px-4 py-2.5 lg:px-6">
         <button type="button" onClick={onMenu} aria-label="메뉴 열기" aria-expanded="false" aria-controls="sidebar" className={cn('grid size-9 place-items-center rounded-lg border border-input bg-card active:translate-y-px disabled:opacity-50 lg:hidden', FR)}><Menu className="size-5" /></button>
-        <a href={href('decide')} aria-label="배스킨라빈스 트렌드" className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><img src={`${import.meta.env.BASE_URL}br-logo.png`} alt="배스킨라빈스 로고" className="h-9 w-auto" /></a>
+        <a href={href('radar')} aria-label="배스킨라빈스 트렌드" className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><img src={`${import.meta.env.BASE_URL}br-logo.png`} alt="배스킨라빈스 로고" className="h-9 w-auto" /></a>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <EvidenceLegend />
           <span role="status" title="합성 데이터, 정확도 미검증" className="whitespace-nowrap rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground"><span className="sm:hidden">합성 데이터</span><span className="hidden sm:inline">합성 데이터, 정확도 미검증</span></span>
