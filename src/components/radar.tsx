@@ -175,7 +175,7 @@ function Scores() {
   )
 }
 
-/** 다가오는 시즌: 급등을 기다리지 않고, 출시 시점(13주 뒤)과 그다음 달에 매년 정점인 재료를 미리 보여 준다 */
+/** 다가오는 시즌: 급등을 기다리지 않고, 출시 시점(13주 뒤)부터 6개월 안에 매년 정점인 재료를 미리 보여 준다 */
 type SeasonItem = (typeof season.items)[number]
 const SEASON_NOTE = ['지금 준비해야 맞출 수 있어요', '지금 준비하면 여유 있게 맞출 수 있어요']
 const seasonYear = (m: number) => Number(season.target.slice(0, 4)) + (m < Number(season.target.slice(5, 7)) ? 1 : 0)
@@ -242,7 +242,7 @@ function Season() {
         <CardHeader title={<span className="text-lg font-bold">다가오는 시즌</span>} description="매년 이맘때 검색이 오르는 재료예요"
           right={<Segmented label="정점 달" value={String(month)} options={opts} onChange={(v) => { setMonth(Number(v)); setSel('') }} />} />
         <div className="border-b border-border pb-3">
-          <p className={cn('text-base font-bold', gi === 0 && 'text-primary')}>{SEASON_NOTE[gi]}</p>
+          <p className={cn('text-base font-bold', gi === 0 && 'text-primary')}>{SEASON_NOTE[gi === 0 ? 0 : 1]}</p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">매년 {month}월에 정점을 찍는 재료예요. 이달의 맛 출시까지 {H}주가 걸려요.</p>
         </div>
         <ul className="-mx-1 flex max-h-[600px] flex-col gap-1 overflow-y-auto pt-2">
@@ -261,6 +261,7 @@ function Season() {
             </li>
           ))}
         </ul>
+        {list.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">해당 달에 정점인 재료가 없어요</p>}
       </Card>
       <div className="lg:col-span-2">{cur && <SeasonDetail it={cur} />}</div>
     </div>
@@ -349,7 +350,7 @@ export function RadarHowTo() {
       <p className="mt-1"><b>급등 감지:</b> 이번 주 검색량이 5 이상이고 직전 12주(3개월) 평균의 1.5배 이상이어야 해요. 그리고 검색광고 API의 실제 검색 수로 환산했을 때 평소 흔들림의 {meta.z}배 이상 올라야 해요(검색이 적은 키워드의 우연한 출렁임은 빼요). 최근 {H}주 안에 감지된 것만 결정 대상으로 보여 줘요. 그보다 오래된 것은 출시 타이밍이 이미 지났기 때문이에요.</p>
       <p className="mt-1"><b>{H}주 생존:</b> 급등으로 늘어난 검색 중 {Math.round(meta.keep * 100)}% 이상이 {H}주 뒤(12~14주 3주 평균)에도 남으면 버팀이에요. 평소 수준으로 돌아가기만 한 것은 못 버팀이에요. 랜덤 포레스트가 감지 시점까지의 곡선 특징 8개(급등 폭, 평소 수요, 꾸준히 검색된 기간, 작년 같은 철 등), 실제 검색 규모, 30세 이상 검색 곡선 3개로 확률을 내요.{scores.chronos && <> 여기에 Chronos-2(Amazon이 공개한 시계열 예측 모델, 학습 없이 그대로 사용)의 값 2가지를 더해요. 하나는 Chronos-2가 예측한 {H}주 뒤 검색량이고, 다른 하나는 Chronos-2가 곡선을 읽고 만든 요약 벡터에 로지스틱 회귀만 학습시켜 낸 버팀 확률이에요.</>}</p>
       <p className="mt-1"><b>주의:</b> 30세 이상 검색 비중이 50% 미만인 디저트(20대 위주)에서, 30세 이상 검색이 20대보다 훨씬 더 오른 급등(상위 25%)이에요. 과거 이런 급등은 {Math.round(scores.warn_rate * 100)}%만 버텨서 확률과 상관없이 단기 대응으로 둬요. 30세 이상 비중은 데이터랩 연령별 곡선으로 전체 곡선을 맞춰 추정한 값이에요.</p>
-      <p className="mt-1"><b>다가오는 시즌:</b> 반복형 재료는 검색이 튀고 나서 잡으면 올해 출시가 늦어요. 그래서 데이터 기준일에서 {H}주 뒤가 속한 달({season.months[0]}월)과 그다음 달({season.months[1]}월)에 매년 정점을 찍는 반복형 재료를 급등 전에 미리 보여줘요. '최근 N년 중 N번'은 2016~2025년 중 그 달 전후 한 달 안에 정점이었던 해의 수예요.</p>
+      <p className="mt-1"><b>다가오는 시즌:</b> 반복형 재료는 검색이 튀고 나서 잡으면 올해 출시가 늦어요. 그래서 데이터 기준일에서 {H}주 뒤가 속한 달({season.months[0]}월)부터 {season.months[season.months.length - 1]}월까지 {season.months.length}개월 동안 매년 정점을 찍는 반복형 재료를 급등 전에 미리 보여줘요. '최근 N년 중 N번'은 2016~2025년 중 그 달 전후 한 달 안에 정점이었던 해의 수예요.</p>
       <p className="mt-1"><b>예측 정확도:</b> 반복형까지 포함한 급등 {scores.all_samples.toLocaleString()}건 기준은 {Math.round(scores.all_bal * 100)}%예요. 반복형은 매년 같은 철에 돌아와서 맞히기 쉽고 화면에서는 확률과 상관없이 시즌 재출시로 두기 때문에, 성능 카드는 새 트렌드(반복형 제외) 급등 {scores.samples.toLocaleString()}건으로 학습에 안 쓴 키워드의 2024년, 2025년 이후 급등을 맞힌 균형 정확도를 보여 줘요. 살아남은 것 중 맞힌 비율과 꺼진 것 중 맞힌 비율의 평균이에요. 기존 규칙은 최고점까지 5주 이하로 뜨면 못 버틴다고 보는 규칙(데이터랩 판정 탭에서 트렌드 25개로 찾은 것)이에요.</p>
       <p className="mt-1"><b>유형:</b> 1년 주기 자기상관이 0.5 이상이고 10년 중 80% 이상 같은 철(±1달)에 정점이면 반복형이에요. 아니면 최고점까지 뜨는 데 걸린 주가 5주 이하면 단발형, 10주 이상이면 완만형, 그 사이는 보류예요.</p>
       <p className="mt-1"><b>주 검색:</b> 급등 감지 주의 실제 검색 수예요. 데이터랩 곡선(키워드마다 최고 주 = 100)을 검색광고 API의 최근 한 달 실제 검색 수에 맞춰 환산한 값이라 키워드끼리 크기를 비교할 수 있어요.</p>

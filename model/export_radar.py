@@ -424,9 +424,9 @@ for k, (grp, v, c) in use.items():
     ))
 items.sort(key=lambda r: -r['prob'])
 
-# 9. 다가오는 시즌: 반복형 중 '데이터 기준일 + 13주'가 속한 달과 그다음 달에 정점인 재료 (급등 전에 미리 보여 줌)
+# 9. 다가오는 시즌: 반복형 중 '데이터 기준일 + 13주'가 속한 달부터 6개월 안에 정점인 재료 (급등 전에 미리 보여 줌)
 target = grid[-1] + pd.Timedelta(weeks=H)
-months = [int(target.month), int(target.month) % 12 + 1]
+months = [(int(target.month) - 1 + i) % 12 + 1 for i in range(6)]
 season_items = []
 for k, (grp, v, c) in use.items():
     s_ = info[k]

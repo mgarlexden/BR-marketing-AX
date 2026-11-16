@@ -62,7 +62,7 @@ export interface RadarData {
   }
   items: RadarItem[]
   clusters: RadarCluster[]
-  /** 다가오는 시즌: 반복형 중 기준일 + 13주가 속한 달(months[0])과 그다음 달에 정점인 재료 */
+  /** 다가오는 시즌: 반복형 중 기준일 + 13주가 속한 달(months[0])부터 6개월 안에 정점인 재료 */
   season: {
     months: number[]; target: string
     /** peak: 최근 1년 중 가장 많이 검색된 주의 실제 검색 수, years: 2016~2025년 중 이 달 전후(±1달)에 정점이었던 해 수, total: 그 기간 데이터가 있는 해 수 */
