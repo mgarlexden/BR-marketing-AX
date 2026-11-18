@@ -17,7 +17,7 @@ export const MAX_REPEAT = 2
 
 export type TrendStatus = '뜨는 중' | '스테디' | '정점' | '하락'
 export type TimingVerdict = '지금' | '선점' | '관찰' | '늦음'
-export const VERDICT_LABEL: Record<TimingVerdict, string> = { 지금: '지금 출시', 선점: '먼저 출시', 관찰: '지켜보기', 늦음: '이번엔 늦음' }
+export const VERDICT_LABEL: Record<TimingVerdict, string> = { 지금: '지금 출시', 선점: '아직 이름', 관찰: '지켜보기', 늦음: '이번엔 늦음' }
 export type ConceptTag = '빠른 대응형' | '트렌드 결합형' | '정면 승부형'
 
 /** 아이스크림 그림: 아이스크림·리본(시럽 띠)·토핑 색, 컵 색(트렌드 테마마다 하나, 아이스크림과 다른 색), 토핑 모양(조각 또는 동글) */
@@ -130,7 +130,7 @@ export function timingOf(it: RadarItem): Timing {
     const peakIn = n - 52 + year.indexOf(Math.max(...year)) + 52 - (n - 1)
     if (peakIn < H) return t('늦음', peakIn, `이번 시즌은 출시 전에 정점이 지나요 → 다음 시즌 겨냥`)
     if (peakIn <= H + SALE) return t('지금', peakIn, `판매 ${SALE}주 안에 정점이 들어와요 → 지금 출시`)
-    return t('선점', peakIn, `정점보다 ${peakIn - H - SALE}주 먼저 판매를 마칠 수 있어요 → 먼저 출시`)
+    return t('선점', peakIn, `${peakIn - H - SALE}~${peakIn - H}주 뒤 개발을 시작해 ${peakIn - SALE}~${peakIn}주 뒤 출시하면 정점에 맞아요 → 아직 이름`)
   }
   if (it.action === '후보') return t('지금', null, `${H}주 뒤 출시 시점에도 수요가 남을 전망 → 지금 출시`)
   if (it.action === '관찰') return t('관찰', null, '아직 판단하기 일러요 → 4주 더 지켜보기')

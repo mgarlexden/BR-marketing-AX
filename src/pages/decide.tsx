@@ -3,7 +3,7 @@ import { ChevronDown, Heart, Minus, Plus, RefreshCw, Search, X } from 'lucide-re
 import { useApp } from '@/lib/app-context'
 import { SCENARIOS, TYPES } from '@/lib/data'
 import { launchKey, skipKey, type LaunchDecision, type SkipDecision } from '@/lib/derived'
-import { ASSUME, dataFor, expectedEffect, launchId, MAX_SLOTS, recommendedStores } from '@/lib/launch'
+import { ASSUME, dataFor, expectedEffect, launchId, MAX_SLOTS } from '@/lib/launch'
 import type { CollabItem } from '@/lib/collab'
 import { RADAR } from '@/lib/trend-data'
 import { addWeeks, shortDate, type RadarItem } from '@/lib/trend'
@@ -73,16 +73,32 @@ const useLikes = () => {
   return { likes, toggle }
 }
 
-function downloadReport() {
-  const lines = [`주간 맛 트렌드 리포트 (데이터 기준일 ${shortDate(meta.last)})`, '네이버 데이터랩 주간 검색량 기준. 트렌드 묶음과 조합은 팀 가설입니다. 배라에 이미 있는 재료는 뺐습니다.', '']
-  TRENDS.forEach((t) => {
-    lines.push(`${t.rank}. ${t.name} | ${t.status} | 확산 지수 ${t.index} | 출시 판단 ${t.timing.label}`)
-    t.ingredients.forEach((it) => lines.push(`   - ${it.kw}: ${it.type}, ${H}주 생존 ${Math.round(it.prob * 100)}%, 이번 주 약 ${weeklyNow(it).toLocaleString()}회 검색, ${ACTION_LABEL[it.action]}`))
+/** public/fonts 의 폰트 파일을 jsPDF에 넣을 base64로 받는다 (버튼을 누를 때만) */
+async function fontBase64(file: string) {
+  const buf = new Uint8Array(await (await fetch(`${import.meta.env.BASE_URL}fonts/${file}`)).arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+
+async function downloadReport() {
+  const [{ jsPDF }, { drawReport, registerFonts }, regular, bold] = await Promise.all([
+    import('jspdf'), import('@/lib/report-pdf'), fontBase64('Pretendard-Regular.ttf'), fontBase64('Pretendard-Bold.ttf'),
+  ])
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
+  registerFonts(doc, regular, bold)
+  drawReport(doc, {
+    dataDate: shortDate(meta.last),
+    source: '네이버 데이터랩 주간 검색량 기준. 트렌드 묶음과 조합은 팀 가설입니다. 배라에 이미 있는 재료는 뺐습니다.',
+    horizon: H,
+    sale: SALE,
+    createdAt: new Date(),
+    trends: TRENDS.map((t) => ({
+      rank: t.rank, name: t.name, status: t.status, index: t.index, verdict: t.timing.verdict, verdictLabel: t.timing.label, peakIn: t.timing.peakIn, color: t.art.bits,
+      rows: t.ingredients.map((it) => ({ kw: it.kw, type: it.type, prob: it.prob, weekly: weeklyNow(it), action: ACTION_LABEL[it.action], candidate: it.action === '후보' })),
+    })),
   })
-  const url = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url; a.download = `맛트렌드_주간리포트_${meta.last}.txt`; a.click()
-  URL.revokeObjectURL(url)
+  doc.save(`맛트렌드_주간리포트_${meta.last}.pdf`)
 }
 
 function TimingBar({ peakIn }: { peakIn: number | null }) {
@@ -199,7 +215,7 @@ function FlavorDetail({ t, onDevelop, developing }: { t: FlavorTrend; onDevelop:
             ? `기준 재료 ${lead.kw}: 매년 같은 철에 돌아오는 재료라 최근 1년의 정점 주를 다음 정점으로 잡았습니다. 지금 기획을 시작하면 ${H}주 뒤 출시합니다.`
             : `기준 재료 ${lead.kw}: 시즌을 타지 않아 정점 시점을 예측하지 않습니다. 대신 모델이 ${H}주 뒤에도 감지 시점의 절반 이상 수요가 남을 확률을 ${Math.round(lead.prob * 100)}%로 봅니다.`}</p>
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{seasonal
-            ? <><b className="text-primary">지금 출시</b> 판매 {SALE}주 안에 정점 &nbsp; <b>먼저 출시</b> 정점 전에 판매를 마침 &nbsp; <b>이번엔 늦음</b> 출시 전에 정점이 지남</>
+            ? <><b className="text-primary">지금 출시</b> 판매 {SALE}주 안에 정점 &nbsp; <b>아직 이름</b> 정점이 멀어 개발 시작을 늦춤 &nbsp; <b>이번엔 늦음</b> 출시 전에 정점이 지남</>
             : <><b className="text-primary">지금 출시</b> {H}주 생존 60%+ &nbsp; <b>지켜보기</b> 40~60% 또는 규모 작음 &nbsp; <b>이번엔 늦음</b> 40% 미만</>}</p>
           <BrNotes t={t} />
         </div>
@@ -386,7 +402,7 @@ function Row({ k, children }: { k: keyof typeof PART; children: React.ReactNode 
 function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, sub }: { cur: Pick; liked: boolean; onLike: () => void; children: React.ReactNode; verdict: string; eyebrow: string; tag: string; title: string; sub: string }) {
   const { appr, setAppr, go, scenarios } = useApp()
   const stores = useMemo(() => dataFor(SCENARIOS.a).stores.filter((s) => s.place.rep), [])
-  const [sel, setSel] = useState<string[]>(recommendedStores)
+  const [sel, setSel] = useState<string[]>([])
   const [price, setPrice] = useState(ASSUME.price)
   const [cannibal, setCannibal] = useState(Math.round(ASSUME.cannibal * 100))
   const ex = useMemo(() => expectedEffect(cur.type, sel, price, cannibal / 100), [cur, sel, price, cannibal])
@@ -442,7 +458,7 @@ function Decision({ cur, liked, onLike, children, verdict, eyebrow, tag, title, 
                 <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground"><span className="num">{sel.length ? `+${pc(ex.visitLo)}~${pc(ex.visitHi)} · ${man(ex.salesLo)}~${man(ex.salesHi)}원` : '-'}</span><ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden /></span>
               </summary>
               <div className="pb-4">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">대표 매장 {sel.length}곳 선출시 (손님 유형마다 3곳, 전부 선택에서 시작)</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">대표 매장 {sel.length}곳 선출시 (손님 유형마다 3곳 중에서 직접 골라요)</p>
                 <p className="mb-3 text-xs leading-relaxed text-muted-foreground"><b className="text-foreground">대표 매장:</b> 손님 유형 {TYPES.length}종({TYPES.join(', ')})마다 대표 3곳이 먼저 출시해요. 대표 매장 반응에 유형 가중치를 곱해 전국 평균을 미리 읽어요. 매장 이름에 마우스를 올리면 동네와 직영·가맹이 보여요.</p>
                 <div className="flex flex-col gap-2">
                   {TYPES.map((t) => (
@@ -605,7 +621,7 @@ export default function Decide() {
 
   return (
     <div className="flavor-page">
-      <TabTitle title="트렌드" desc="뜨는 맛을 찾고 출시를 결정해요">
+      <TabTitle title="출시 후보" desc="뜨는 맛을 찾고 출시를 결정해요">
         <label className="flex w-full items-center gap-2 border-b border-border px-1 pb-1.5 sm:w-64">
           <span className="sr-only">맛, 재료 검색</span>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="맛·재료 검색" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
@@ -638,7 +654,7 @@ export default function Decide() {
         <p className="mt-1"><b>배라 출시 이력:</b> 배스킨라빈스 홈페이지의 아이스크림 메뉴 {MENU_NAMES.length}종과 2018~{THIS_YEAR}년 이달의 맛 히스토리({BR_SOURCE.collected} 수집)를 씁니다. 지금 파는 메뉴의 이름이나 해시태그에 같은 재료가 있으면 뺍니다. 이달의 맛으로 나온 적 있는 재료는 출시 사이 평균 간격(년)을 주기로 보고, 마지막 출시 뒤 그만큼 지났으면 '재출시 주기'로 남기고 아니면 뺍니다. 한 번만 나온 재료는 {SINGLE_GAP}년 주기로 가정합니다. 히스토리에 월이 없어 연 단위로만 셉니다({THIS_YEAR}년 기준). 같은 재료로 보는 표현(예: 딸기=스트로베리, 붕어빵=팥붕·슈붕)은 팀이 정했습니다.</p>
         <p className="mt-1"><b>이달의 맛 조합:</b> 조합 하나는 베이스·리본·토핑 3가지로 만들고, 베이스는 지금 파는 배라 맛을 우선 씁니다. 베이스를 그대로 두면 빠른 대응형, 다른 재료를 섞어 배합을 조정하면 트렌드 결합형, 베이스를 새로 개발하면 정면 승부형입니다. 한 번에 보여 주는 3개 안에서 같은 재료(베이스, 섞는 재료, 리본, 토핑)는 {MAX_REPEAT}번까지만 나오게 하고, 덜 겹치는 묶음부터 보여 줍니다. 조합은 팀 가설이고 판매 근거는 없습니다.</p>
         <p className="mt-1"><b>확산 지수:</b> 재료마다 이번 주 검색량이 최근 3년 중 가장 많이 검색된 주의 몇 %인지 구해 묶음 평균을 냅니다. 재료끼리 검색 규모를 비교하지는 않아서, 규모는 재료별 검색 신호(이번 주 검색 수 추정)에서 봅니다.</p>
-        <p className="mt-1"><b>상태와 우선순위:</b> 최근 4주 평균을 직전 12주 평균과 비교해 1.15배 이상 뜨는 중, 1.05배 이상이면서 지수 70 이상이면 정점, 0.85배 이하 하락, 그 외 스테디입니다. 우선순위는 출시 판단(지금 출시 → 먼저 출시 → 지켜보기 → 이번엔 늦음), 상태, 확산 지수 순이고, 지난주 대비는 곡선을 한 주 전에서 잘라 같은 규칙으로 매긴 순위와의 차이입니다.</p>
+        <p className="mt-1"><b>상태와 우선순위:</b> 최근 4주 평균을 직전 12주 평균과 비교해 1.15배 이상 뜨는 중, 1.05배 이상이면서 지수 70 이상이면 정점, 0.85배 이하 하락, 그 외 스테디입니다. 우선순위는 출시 판단(지금 출시 → 아직 이름 → 지켜보기 → 이번엔 늦음), 상태, 확산 지수 순이고, 지난주 대비는 곡선을 한 주 전에서 잘라 같은 규칙으로 매긴 순위와의 차이입니다.</p>
         <p className="mt-1"><b>출시 판단:</b> 묶음에서 이달의 맛 후보·시즌 재출시 재료 중 첫 재료를 기준으로 합니다. 반복형은 최근 1년 정점 주가 내년에 돌아온다고 보고, 지금부터 {H}주 개발 후 {SALE}주 판매 구간과 비교합니다. 그 외 유형은 레이더 제안(후보 지금 출시, 관찰 지켜보기, 단기 이번엔 늦음)을 따릅니다.</p>
         <p className="mt-1"><b>레이더:</b> 급등 감지와 {H}주 생존 확률 계산은 트렌드 레이더 탭의 기준에 있습니다.</p>
         <p className="mt-1"><b>콜라보:</b> 최근 4주 평균이 직전 12주 평균의 1.5배 이상이고 전성기 대비 20% 이상이면 지금 출시, 1.25배 이상이면 지켜보기입니다. 곡선은 실제 IP 검색량을 연결하기 전의 시연값이고, 생존 모델이 없어 확률은 내지 않습니다.</p>
